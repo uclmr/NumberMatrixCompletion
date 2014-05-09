@@ -23,49 +23,26 @@ params = {
 # It stops when the topics are exhausted.
 
 for i in xrange(1000):
-  # construct the query
-  mql_url = mqlread_url + '?query=' + mql_query + "&cursor=" + cursor
-  print mql_url
-  statisticalRegionsResult = json.loads(urllib.urlopen(mql_url).read())
-  print statisticalRegionsResult
-  for region in statisticalRegionsResult["result"]:
-    print region["mid"]# + ":" + region["name"]
-    # now get the statistical properties
-    topic_url = topicService_url +  region["mid"] + '?' + urllib.urlencode(params)
-    topicResult = json.loads(urllib.urlopen(topic_url).read())
-    #print topicResult
-    topicResult["name"] = region["name"]
-    filename = region["mid"].split("/")[-1]
-    with open(filename, 'w') as outfile:
-      json.dump(topicResult, outfile)
-    # TODO: Process the data: Hmm, trickier than I thought, do it in a separate file
-    #print topicResult
-    # for each of the properties
-    #if 'property' not in topicResult:
-    #  break
-    #for property in topicResult['property']:
-    #  print property + ':'
+    # construct the query
+    mql_url = mqlread_url + '?query=' + mql_query + "&cursor=" + cursor
+    print mql_url
+    statisticalRegionsResult = json.loads(urllib.urlopen(mql_url).read())
+    print statisticalRegionsResult
+    for region in statisticalRegionsResult["result"]:
+        print region["mid"]# + ":" + region["name"]
+        # now get the statistical properties
+        topic_url = topicService_url +  region["mid"] + '?' + urllib.urlencode(params)
+        topicResult = json.loads(urllib.urlopen(topic_url).read())
+        #print topicResult
+        topicResult["name"] = region["name"]
+        filename = region["mid"].split("/")[-1]
+        with open(filename, 'w') as outfile:
+            json.dump(topicResult, outfile)
 
-      # the following gets us a nice textual value, now what we need though
-      # for value in topicResult['property'][property]['values']:
-      #   print ' - ' + value['text']
-
-      # let's get the most recent one:
-      # TODO: this is not always the top one, we should go over them
-      #lastMeasurement = topicResult['property'][property]['values'][0]
-      #print lastMeasurement['property']
-
-  # update the cursor
-  cursor = statisticalRegionsResult['cursor']
-  # this gues can be used to resume the data download
-  print "New cursor to process"
-  print cursor
-  if not cursor:
-    break
-
-#print topic
-
-#for property in topic['property']:
-#  print property + ':'
-#  for value in topic['property'][property]['values']:
-#    print ' - ' + value['text']
+    # update the cursor
+    cursor = statisticalRegionsResult['cursor']
+    # this gues can be used to resume the data download
+    print "New cursor to process"
+    print cursor
+    if not cursor:
+        break

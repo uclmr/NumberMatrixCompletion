@@ -4,6 +4,7 @@ Created on May 10, 2014
 @author: andreasvlachos
 
 Takes one argument, the output directory
+WARNING: The MQL API does not return all the data held in FreeBase, only a substantial (seemingly random) part of it.
 
 '''
 import json

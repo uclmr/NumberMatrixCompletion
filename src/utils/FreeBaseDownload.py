@@ -14,6 +14,10 @@ mql_query = '[{"mid": null,"name": null, "type": "/location/statistical_region",
 # set this to the last value we obtained
 cursor = "eNpVjEEKwkAQBL-jyJKeyc7uzCDiP0IOcWUhICYkxKNvV3IQ7GMV1WVb1mlxw616NzmrRaDvnk7QqCTE0o_r4Ag7QE5k_jiHw2uc3UyFkuSfY_hyMgYPWvA9QopUFX8r4bJ3MbbHhkTabAL2d-jW2dkSEvXNNakpRdGKfK8FliPSB9DJKhs="
 
+# TODO: we need to have a parameter limit=0 as in:
+# https://www.googleapis.com/freebase/v1/topic/m/0f8l9c?filter=/location/statistical_region&limit=0
+# Otherwise, we are apparently restricted to 10 values....
+
 api_key = "AIzaSyClJFx89pJR0_8yc1nvTClMUzFPj0r1dHA"
 topicService_url = 'https://www.googleapis.com/freebase/v1/topic'
 params = {

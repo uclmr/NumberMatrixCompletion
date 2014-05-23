@@ -2,6 +2,9 @@
 Created on May 10, 2014
 
 @author: andreasvlachos
+
+TODO: This would probably benefit if it is updated to use the propertyTypes2ValueTime from the FreeBaseDownloadMQLonly.
+
 '''
 
 import json

@@ -27,20 +27,20 @@ params = {
 # Given the quota, we can run this 1000 times daily.
 # It stops when the topics are exhausted.
 
-for i in xrange(988):
+for i in xrange(1000):
     # construct the query
     mql_url = mqlread_url + '?query=' + mql_query + "&cursor=" + cursor
     print mql_url
     statisticalRegionsResult = json.loads(urllib.urlopen(mql_url).read())
-    print statisticalRegionsResult
+    #print statisticalRegionsResult
     for region in statisticalRegionsResult["result"]:
-        print region["mid"] + ":" + region["name"]
+        print region["mid"] #+ ":" + region["name"]
         # now get the statistical properties
         topic_url = topicService_url + region["mid"] + '?' + urllib.urlencode(params)
         topicResult = json.loads(urllib.urlopen(topic_url).read())
         # print topicResult
         topicResult["name"] = region["name"]
-        filename = region["mid"].split("/")[-1]
+        filename = region["mid"].split("/")[-1] + ".json"
         with open(filename, 'w') as outfile:
             json.dump(topicResult, outfile)
 

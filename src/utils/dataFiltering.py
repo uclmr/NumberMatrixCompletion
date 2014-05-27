@@ -9,21 +9,37 @@ from collections import Counter
 with open("/cs/research/intelsys/home1/avlachos/FactChecking/allCountriesPost2010.json") as dataFile:
     data = json.loads(dataFile.read())
     
-print json.dumps(data, sort_keys=True, indent=4)
-    
-featureCounts = Counter()
-countryCounts = Counter()
+#print json.dumps(data, sort_keys=True, indent=4)
+print len(data)
+filteredFeatureCounts = Counter()
+filteredCountries = {}
 for country, numbers in data.items():
-    countryCounts[country] = len(numbers)
-    for feature in numbers:
-        featureCounts[feature] += 1
+    if len(numbers) >= 2:
+        filteredCountries[country] = numbers
+        for feature in numbers:
+            filteredFeatureCounts[feature] += 1
+        
 
-print countryCounts
-print featureCounts 
-print len(featureCounts)
-print data["Algeria"]
-print data["Germany"]["/location/statistical_region/population"]
-print data["Algeria"]["/location/statistical_region/population"]
+print filteredFeatureCounts 
 
-print featureCounts.most_common(10)
+filteredFeatureCountries = {}
+for country, numbers in filteredCountries.items():
+    filteredFeatures = {}
+    for feature, number in numbers.items():
+        if filteredFeatureCounts[feature] >= 10:
+            filteredFeatures[feature] = number
+    filteredFeatureCountries[country] = filteredFeatures
+
+print len(filteredFeatureCountries)
+
+with open("/cs/research/intelsys/home1/avlachos/FactChecking/allCountriesPost2010Filtered.json", "w") as dataFile:
+    json.dump(filteredFeatureCountries, dataFile)
+
+
+#print len(featureCounts)
+#print data["Algeria"]
+#print data["Germany"]["/location/statistical_region/population"]
+#print data["Algeria"]["/location/statistical_region/population"]
+
+#print featureCounts.most_common(40)
  

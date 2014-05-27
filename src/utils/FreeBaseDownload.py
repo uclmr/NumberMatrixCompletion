@@ -34,7 +34,7 @@ for i in xrange(1000):
     statisticalRegionsResult = json.loads(urllib.urlopen(mql_url).read())
     #print statisticalRegionsResult
     for region in statisticalRegionsResult["result"]:
-        print region["mid"] #+ ":" + region["name"]
+        print region["mid"]# + ":" + region["name"]
         # now get the statistical properties
         topic_url = topicService_url + region["mid"] + '?' + urllib.urlencode(params)
         topicResult = json.loads(urllib.urlopen(topic_url).read())

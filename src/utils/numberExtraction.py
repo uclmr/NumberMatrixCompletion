@@ -3,6 +3,8 @@ Created on May 10, 2014
 
 @author: andreasvlachos
 
+This script takes jsons downloaded from Freebase, one for each statistical region and extracts all 2010 or later statistics.
+
 '''
 
 propertyTypes2ValueTime = {

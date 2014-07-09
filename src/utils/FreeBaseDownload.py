@@ -2,6 +2,8 @@
 Created on May 10, 2014
 
 @author: andreasvlachos
+
+This script downloads all statistical regions from FreeBase using a combination of the MQL read API and the Topic API.
 '''
 import json
 import urllib

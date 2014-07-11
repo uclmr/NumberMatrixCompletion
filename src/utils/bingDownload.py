@@ -60,6 +60,9 @@ for name in countryNames:
         # the query terms are done with urllib quote in order to get %20 instead of + (bing likes that instead)
         # Note that add the current year (2014) since Bing API doesn't allow us search only recent documents
         #print '\''.encode('utf-8') + name + " " + keywords + u' 2014\''.encode('utf-8')
+        # TODO: add in the end this bit
+        #&Adult=%27Strict%27&WebSearchOptions=%27DisableQueryAlterations%27
+        # TODO: rerun without 2014, it actually gives us world cup results...
         url = bingUrl + "?Query=" + urllib.quote('\''.encode('utf-8') + name + " " + keywords + ' 2014\''.encode('utf-8')) + "&" + urllib.urlencode(params) + "&$format=json"
         print url
         req = urllib2.Request(url, headers = headers)

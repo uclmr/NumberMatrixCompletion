@@ -12,3 +12,9 @@ Preprocessing order:
 5. htmlDownload.py: to get the html from the links
 
 FreeBaseDownloadMQLonly.py was an attempt to do the FreeBaseDownload using only the MQL API. While it is more elegant to code up, it turns out that the MQL API doesn't have access to all the data in FreeBase, thus there is no point in using it.
+
+Then we run the following bits of Java from the HTML2Stanford:
+HTML2Text
+Text2Parsed2JSON (careful to use the CollapsedCCproccessed dependencies)
+
+And then back to extracting the locations with any numbers that come along.

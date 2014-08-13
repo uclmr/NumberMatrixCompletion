@@ -59,11 +59,12 @@ for jsonFileName in jsonFiles:
                     locationIDs.append(currentLocation)
                     currentLocation = []
                 # we are not in a name so, check for number token:
-                try:
-                    numbers.append(float(token["word"]))
-                    numberIDs.append(idx)
-                except ValueError:
-                    pass
+                if token["ner"] != "DATE":
+                    try:
+                        numbers.append(float(token["word"]))
+                        numberIDs.append(idx)
+                    except ValueError:
+                        pass
                                 
         #print locationIDs
         #print numberIDs
@@ -116,7 +117,7 @@ for jsonFileName in jsonFiles:
                         except networkx.exception.NetworkXNoPath:
                             pass
                     # ignore paths longer than 3 deps, i.e. 4 tokens
-                    if len(shortestPaths) > 0 and len(shortestPaths[0]) < 4:
+                    if len(shortestPaths) > 0 and len(shortestPaths[0]) < 6:
                         for shortestPath in shortestPaths:
                             # get the first dep
                             pathStrings = []
@@ -124,7 +125,7 @@ for jsonFileName in jsonFiles:
                             # for the words in between add the lemma and the dep
                             for seq, tokenIDX in enumerate(shortestPath[1:-1]):
                                 pathStrings.append(sentence["tokens"][tokenIDX]["lemma"] + "~" + sentenceDAG[tokenIDX][shortestPath[seq+2]]["label"])
-                            pathString = "-".join(pathStrings)
+                            pathString = "+".join(pathStrings)
                             #print locationName + ":" + pathString  + ":" + str(number)
                         
                             if pathString not in theMatrix:
@@ -134,6 +135,22 @@ for jsonFileName in jsonFiles:
                                 theMatrix[pathString][locationName] = []
                         
                             theMatrix[pathString][locationName].append(number)
+                            
+                            # create additional paths by adding all out-edges from the number token (except for the one taking as back)
+                            outEdgesFromNumber = sentenceDAG.out_edges_iter([numberID])
+                            for edge in outEdgesFromNumber:
+                                # if we are not going back:
+                                dummy, outNode = edge
+                                if outNode != shortestPath[-2]:
+                                    pathStringAdd = pathString + "+followedBy+" + sentenceDAG[numberID][outNode]["label"] + "~" + sentence["tokens"][outNode]["lemma"]
+                                    if pathStringAdd not in theMatrix:
+                                        theMatrix[pathStringAdd] = {}
+                            
+                                    if locationName not in theMatrix[pathStringAdd]:
+                                        theMatrix[pathStringAdd][locationName] = []
+                        
+                                    theMatrix[pathStringAdd][locationName].append(number)
+                                    
 #print theMatrix 
                         
 with open(outputFile, "wb") as out:

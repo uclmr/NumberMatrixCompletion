@@ -115,23 +115,25 @@ for jsonFileName in jsonFiles:
                         # if not paths were found, do nothing
                         except networkx.exception.NetworkXNoPath:
                             pass
-                    for shortestPath in shortestPaths:
-                        # get the first dep
-                        pathStrings = []
-                        pathStrings.append(sentenceDAG[shortestPath[0]][shortestPath[1]]["label"])
-                        # for the words in between add the lemma and the dep
-                        for seq, tokenIDX in enumerate(shortestPath[1:-1]):
-                            pathStrings.append(sentence["tokens"][tokenIDX]["lemma"] + "~" + sentenceDAG[tokenIDX][shortestPath[seq+2]]["label"])
-                        pathString = "-".join(pathStrings)
-                        #print locationName + ":" + pathString  + ":" + str(number)
+                    # ignore paths longer than 3 deps, i.e. 4 tokens
+                    if len(shortestPaths[0]) < 4:
+                        for shortestPath in shortestPaths:
+                            # get the first dep
+                            pathStrings = []
+                            pathStrings.append(sentenceDAG[shortestPath[0]][shortestPath[1]]["label"])
+                            # for the words in between add the lemma and the dep
+                            for seq, tokenIDX in enumerate(shortestPath[1:-1]):
+                                pathStrings.append(sentence["tokens"][tokenIDX]["lemma"] + "~" + sentenceDAG[tokenIDX][shortestPath[seq+2]]["label"])
+                            pathString = "-".join(pathStrings)
+                            #print locationName + ":" + pathString  + ":" + str(number)
                         
-                        if pathString not in theMatrix:
-                            theMatrix[pathString] = {}
+                            if pathString not in theMatrix:
+                                theMatrix[pathString] = {}
                             
-                        if locationName not in theMatrix[pathString]:
-                            theMatrix[pathString][locationName] = []
+                            if locationName not in theMatrix[pathString]:
+                                theMatrix[pathString][locationName] = []
                         
-                        theMatrix[pathString][locationName].append(number)
+                            theMatrix[pathString][locationName].append(number)
 #print theMatrix 
                         
 with open(outputFile, "wb") as out:

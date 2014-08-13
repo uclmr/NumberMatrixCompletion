@@ -155,4 +155,16 @@ for jsonFileName in jsonFiles:
                         
 with open(outputFile, "wb") as out:
     json.dump(theMatrix, out)
-                        
+    
+    
+# print the deps with the most locations:
+dep2counts = {}
+for dep, values in theMatrix.items():
+    dep2counts[dep] = len(values)
+    
+import operator
+sortedDeps = sorted(dep2counts.iteritems(), key=operator.itemgetter(1), reverse=True)
+
+for dep in sortedDeps[:20]:
+    print dep[0]
+    print theMatrix[dep[0]]

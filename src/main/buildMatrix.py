@@ -116,7 +116,7 @@ for jsonFileName in jsonFiles:
                         except networkx.exception.NetworkXNoPath:
                             pass
                     # ignore paths longer than 3 deps, i.e. 4 tokens
-                    if len(shortestPaths[0]) < 4:
+                    if len(shortestPaths) > 0 and len(shortestPaths[0]) < 4:
                         for shortestPath in shortestPaths:
                             # get the first dep
                             pathStrings = []

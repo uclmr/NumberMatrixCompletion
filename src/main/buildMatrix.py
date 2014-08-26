@@ -10,7 +10,6 @@ Location:[dep1:[val1, val2], dep1:[val1, val2, ...]]
 import json
 import sys
 import os
-import numpy
 import glob
 import networkx
 
@@ -23,6 +22,15 @@ import networkx
 #        return json.JSONEncoder.default(self, obj)
 
 
+# TODO: Let's make some functions:
+# getNumbers
+# getLocations
+# getSurfacePatterns
+# buildDAG
+# getDepPaths
+
+
+
 parsedJSONDir = sys.argv[1]
 
 # get all the files
@@ -31,7 +39,7 @@ jsonFiles = glob.glob(parsedJSONDir + "/*.json")
 # one json to rule them all
 outputFile = sys.argv[2]
 
-# This is the location2deps2values
+# This is the dep2location2values
 theMatrix = {}
 
 print str(len(jsonFiles)) + " files to process"
@@ -165,6 +173,6 @@ for dep, values in theMatrix.items():
 import operator
 sortedDeps = sorted(dep2counts.iteritems(), key=operator.itemgetter(1), reverse=True)
 
-for dep in sortedDeps[:20]:
+for dep in sortedDeps[:50]:
     print dep[0]
     print theMatrix[dep[0]]

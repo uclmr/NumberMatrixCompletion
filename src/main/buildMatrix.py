@@ -120,7 +120,39 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
 
     return strings
 
-#def getSurfacePatterns(sentence, locationTokenIDs, numberTokenID):
+def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenID, extend=True):
+    # so this can go either from the location to the number, or the other way around
+    # if the number token is before the first token of the location
+    tokenSeqs = []
+    if numberTokenID < locationTokenIDs[0]:
+        tokenIDs = range(numberTokenID+1, locationTokenIDs[0])
+    else:
+        tokenIDs = range(locationTokenIDs[-1]+1, numberTokenID)
+    
+    tokens = []
+    for id in tokenIDs:
+        tokens.append('"' + sentence["tokens"][id]["word"] + '"')
+     
+    if numberTokenID < locationTokenIDs[0]:
+        tokens = ["NUMBER"] + tokens + ["LOCATION"]
+    else:
+        tokens = ["LOCATION"] + tokens + ["NUMBER"]
+    tokenSeqs.append(tokens)
+    
+    if extend:
+        lhsID = min([numberTokenID] + list(locationTokenIDs))
+        rhsID = max([numberTokenID] + list(locationTokenIDs))
+        if lhsID > 1:
+            tokenSeqs.append(['"' + sentence["tokens"][lhsID-2]["word"] + '"', '"' + sentence["tokens"][lhsID-1]["word"] + '"'] + tokens)
+        elif lhsID == 1:
+            tokenSeqs.append(['"' + sentence["tokens"][lhsID-1]["word"] + '"'] + tokens)
+
+        if rhsID < len(sentence["tokens"]) - 2:
+            tokenSeqs.append(tokens + ['"' + sentence["tokens"][rhsID+1]["word"] + '"', '"' + sentence["tokens"][rhsID+2]["word"] + '"'])
+        elif rhsID == len(sentence["tokens"]) - 2:
+            tokenSeqs.append(tokens + ['"' + sentence["tokens"][rhsID+1]["word"] + '"'])
+    return tokenSeqs
+    
     
 
 # again, we want to extend them on either side.
@@ -165,7 +197,7 @@ for jsonFileName in jsonFiles:
                     shortestPaths = getShortestDepPaths(sentenceDAG,  locationTokenIDs, numberTokenID)
                     
                     # ignore paths longer than some number deps (=tokens_on_path + 1)
-                    if len(shortestPaths) > 0 and len(shortestPaths[0]) < 6:
+                    if len(shortestPaths) > 0 and len(shortestPaths[0]) < 4:
                         for shortestPath in shortestPaths:
                             pathStrings = depPath2StringExtend(sentenceDAG, shortestPath)
                             for pathString in pathStrings:
@@ -178,13 +210,26 @@ for jsonFileName in jsonFiles:
                                 depPath2location2values[pathString][location].append(number)
                                 
                     # now get the surface strings 
+                    surfacePatternTokenSeqs = getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenID)   
+                    for surfacePatternTokens in surfacePatternTokenSeqs:
+                        if len(surfacePatternTokens) < 10:
+                            surfaceString = ",".join(surfacePatternTokens)
+                            if surfaceString not in string2location2values:
+                                string2location2values[surfaceString] = {}
                             
-                                    
+                            if location not in string2location2values[surfaceString]:
+                                string2location2values[surfaceString][location] = []
+                        
+                            string2location2values[surfaceString][location].append(number)
+                        
 
                         
-with open(outputFile, "wb") as out:
+with open(outputFile + "_deps.json", "wb") as out:
     json.dump(depPath2location2values, out)
-    
+
+with open(outputFile + "_strs.json", "wb") as out:
+    json.dump(string2location2values, out)
+
     
 # print the deps with the most locations:
 dep2counts = {}
@@ -197,3 +242,14 @@ sortedDeps = sorted(dep2counts.iteritems(), key=operator.itemgetter(1), reverse=
 for dep in sortedDeps[:50]:
     print dep[0]
     print depPath2location2values[dep[0]]
+    
+# print the string with the most locations:
+str2counts = {}
+for str, values in string2location2values.items():
+    str2counts[str] = len(values)
+    
+sortedStrs = sorted(str2counts.iteritems(), key=operator.itemgetter(1), reverse=True)
+
+for str in sortedStrs[:50]:
+    print str[0]
+    print string2location2values[str[0]]

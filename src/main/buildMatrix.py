@@ -22,14 +22,108 @@ import networkx
 #        return json.JSONEncoder.default(self, obj)
 
 
-# TODO: Let's make some functions:
-# getNumbers
-# getLocations
-# getSurfacePatterns
-# buildDAG
+
+def getNumbers(sentence):
+    tokenID2number = {}
+    for idx, token in enumerate(sentence["tokens"]):
+        # avoid only tokens known to be dates or part of locations
+        # This only takes actual numbers into account thus it ignores things like "one million"
+        # and also treating "500 millions" as "500" 
+        if token["ner"] not in ["DATE", "LOCATION"]:
+            try:
+                tokenID2number[idx] = float(token["word"]) 
+            except ValueError:
+                pass
+    return tokenID2number
+
+def getLocations(sentence):
+    # note that a location can span multiple tokens
+    tokenIDs2location = {}
+    currentLocation = []
+    for idx, token in enumerate(sentence["tokens"]):
+        # if it is a location token add it:
+        if token["ner"] == "LOCATION":
+            currentLocation.append(idx)
+        # if it is a no location token
+        else:
+            # check if we have just finished a location             
+            if len(currentLocation) > 0:
+                # convert the tokenID to a tuple (immutable) and put the name there
+                locationTokens = []
+                for locIdx in currentLocation:
+                    locationTokens.append(sentence["tokens"][locIdx]["word"]) 
+
+                tokenIDs2location[tuple(currentLocation)] = " ".join(locationTokens)
+                currentLocation = []
+                
+    return tokenIDs2location
+
+def buildDAGfromSentence(sentence):
+    sentenceDAG = networkx.DiGraph()
+    for idx, token in enumerate(sentence["tokens"]):
+        sentenceDAG.add_node(idx, word=token["word"])
+        sentenceDAG.add_node(idx, lemma=token["lemma"])
+        
+    # and now the edges:
+    for dependency in sentence["dependencies"]:
+        sentenceDAG.add_edge(dependency["head"], dependency["dep"], label=dependency["label"])
+        # add the reverse if one doesn't exist
+        # if an edge exists, the label gets updated, thus the standard edges do 
+        if not sentenceDAG.has_edge(dependency["dep"], dependency["head"]):
+            sentenceDAG.add_edge(dependency["dep"], dependency["head"], label="-" + dependency["label"])
+    return sentenceDAG
+            
 # getDepPaths
+# also there can be more than one paths
+def getShortestDepPaths(sentenceDAG, locationTokenIDs, numberTokenID):
+    shortestPaths = []
+    for locationTokenID in locationTokenIDs:
+        try:
+            # get the shortest paths
+            # get the list as it they are unlikely to be very many and we need to len()                  
+            tempShortestPaths = list(networkx.all_shortest_paths(sentenceDAG, source=locationTokenID, target=numberTokenID))
+            # if the paths found are shorter than the ones we had (or we didn't have any)
+            if (len(shortestPaths) == 0) or len(shortestPaths[0]) > len(tempShortestPaths[0]):
+                shortestPaths = tempShortestPaths
+            # if they have equal length add them
+            elif  len(shortestPaths[0]) == len(tempShortestPaths[0]):
+                shortestPaths.extend(tempShortestPaths)
+        # if not paths were found, do nothing
+        except networkx.exception.NetworkXNoPath:
+            pass
+    return shortestPaths
 
+# given the a dep path defined by the nodes, get the string of the lexicalized dep path, possibly extended by one more dep
+def depPath2StringExtend(sentenceDAG, path, extend=True):
+    strings = []
+    # this keeps the various bits of the string
+    pathStrings = []
+    # get the first dep which is from the location
+    pathStrings.append("LOCATION~" + sentenceDAG[path[0]][path[1]]["label"])
+    # for the words in between add the lemma and the dep
+    for seqOnPath, tokenId in enumerate(path[1:-1]):
+        # the +2 is because we are already on the second node in the path
+        pathStrings.append(sentenceDAG.node[tokenId]["lemma"] + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
+    # add the number bit
+    strings.append("+".join(pathStrings + ["NUMBER"]))
+                        
+    if extend:                            
+        # create additional paths by adding all out-edges from the number token (except for the one taking as back)
+        # the number token is the last one on the path
+        outEdgesFromNumber = sentenceDAG.out_edges_iter([path[-1]])
+        for edge in outEdgesFromNumber:
+            # the source of the edge we knew
+            dummy, outNode = edge
+            # if we are not going back:
+            if outNode != path[-2]:
+                strings.append("+".join(pathStrings + ["NUMBER~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"] ]))
 
+    return strings
+
+#def getSurfacePatterns(sentence, locationTokenIDs, numberTokenID):
+    
+
+# again, we want to extend them on either side.
 
 parsedJSONDir = sys.argv[1]
 
@@ -39,8 +133,10 @@ jsonFiles = glob.glob(parsedJSONDir + "/*.json")
 # one json to rule them all
 outputFile = sys.argv[2]
 
-# This is the dep2location2values
-theMatrix = {}
+# this forms the columns using the lexicalized dependency paths
+depPath2location2values = {}
+# this forms the columns using the surface patterns
+string2location2values = {}
 
 print str(len(jsonFiles)) + " files to process"
 
@@ -50,124 +146,49 @@ for jsonFileName in jsonFiles:
         parsedSentences = json.loads(jsonFile.read())
     
     for sentence in parsedSentences:
-         
-        # get the locations and the numbers
-        locationIDs = []
-        currentLocation = []
-        numberIDs = []
-        numbers= []
-        for idx, token in enumerate(sentence["tokens"]):
-            # if it is a location token add it:
-            if token["ner"] == "LOCATION":
-                currentLocation.append(idx)
-            # if it is a no location token
-            else:
-                # check if we have just finished a location 
-                if len(currentLocation) > 0:
-                    locationIDs.append(currentLocation)
-                    currentLocation = []
-                # we are not in a name so, check for number token:
-                if token["ner"] != "DATE":
-                    try:
-                        numbers.append(float(token["word"]))
-                        numberIDs.append(idx)
-                    except ValueError:
-                        pass
-                                
-        #print locationIDs
-        #print numberIDs
+        
+        tokenID2number = getNumbers(sentence)
+        tokenIDs2location = getLocations(sentence)
         
         # if there was at least one location and one number build the dependency graph:
-        if len(locationIDs) > 0 and len(numberIDs) > 0:
-            # construct the location names
-            locations = []
-            for locationID in locationIDs:
-                locationTokens = []
-                for idx in locationID:
-                    locationTokens.append(sentence["tokens"][idx]["word"]) 
-                locations.append(" ".join(locationTokens))
-            #print locations
-            #print numbers
+        if len(tokenID2number) > 0 and len(tokenIDs2location) > 0:
             
-            sentenceDAG = networkx.DiGraph()
-            for idx, token in enumerate(sentence["tokens"]):
-                sentenceDAG.add_node(idx, word=token["word"])
-        
-            # and now the edges:
-            for dependency in sentence["dependencies"]:
-                sentenceDAG.add_edge(dependency["head"], dependency["dep"], label=dependency["label"])
-                
-            # add the reverse if one doesn't exist
-            for dependency in sentence["dependencies"]:
-                if not sentenceDAG.has_edge(dependency["dep"], dependency["head"]):
-                    sentenceDAG.add_edge(dependency["dep"], dependency["head"], label="-" + dependency["label"])
+            sentenceDAG = buildDAGfromSentence(sentence)
 
             # for each pair of location and number 
             # get the pairs of each and find their dependency paths (might be more than one) 
-            for i, locationID in enumerate(locationIDs):
-                locationName = locations[i]
-                for j, numberID in enumerate(numberIDs):
-                    number = numbers[j]
+            for locationTokenIDs, location in tokenIDs2location.items():
+
+                for numberTokenID, number in tokenID2number.items():
+
                     # keep all the shortest paths between the number and the tokens of the location
-                    shortestPaths = []
-                    for tokenID in locationID:
-                        try:
-                            # get the shortest paths
-                            # get the list as it they are unlikely to be very many and we need to len()                  
-                            tempShortestPaths = list(networkx.all_shortest_paths(sentenceDAG, source=tokenID, target=numberID))
-                            # if the paths found are shorter than the ones we had (or we didn't have any)
-                            if (len(shortestPaths) == 0) or len(shortestPaths[0]) > len(tempShortestPaths[0]):
-                                shortestPaths = tempShortestPaths
-                            # if they have equal length add them
-                            elif  len(shortestPaths[0]) == len(tempShortestPaths[0]):
-                                shortestPaths.extend(tempShortestPaths)
-                        # if not paths were found, do nothing
-                        except networkx.exception.NetworkXNoPath:
-                            pass
-                    # ignore paths longer than 3 deps, i.e. 4 tokens
+                    shortestPaths = getShortestDepPaths(sentenceDAG,  locationTokenIDs, numberTokenID)
+                    
+                    # ignore paths longer than some number deps (=tokens_on_path + 1)
                     if len(shortestPaths) > 0 and len(shortestPaths[0]) < 6:
                         for shortestPath in shortestPaths:
-                            # get the first dep
-                            pathStrings = []
-                            pathStrings.append(sentenceDAG[shortestPath[0]][shortestPath[1]]["label"])
-                            # for the words in between add the lemma and the dep
-                            for seq, tokenIDX in enumerate(shortestPath[1:-1]):
-                                pathStrings.append(sentence["tokens"][tokenIDX]["lemma"] + "~" + sentenceDAG[tokenIDX][shortestPath[seq+2]]["label"])
-                            pathString = "+".join(pathStrings)
-                            #print locationName + ":" + pathString  + ":" + str(number)
-                        
-                            if pathString not in theMatrix:
-                                theMatrix[pathString] = {}
+                            pathStrings = depPath2StringExtend(sentenceDAG, shortestPath)
+                            for pathString in pathStrings:
+                                if pathString not in depPath2location2values:
+                                    depPath2location2values[pathString] = {}
                             
-                            if locationName not in theMatrix[pathString]:
-                                theMatrix[pathString][locationName] = []
+                                if location not in depPath2location2values[pathString]:
+                                    depPath2location2values[pathString][location] = []
                         
-                            theMatrix[pathString][locationName].append(number)
+                                depPath2location2values[pathString][location].append(number)
+                                
+                    # now get the surface strings 
                             
-                            # create additional paths by adding all out-edges from the number token (except for the one taking as back)
-                            outEdgesFromNumber = sentenceDAG.out_edges_iter([numberID])
-                            for edge in outEdgesFromNumber:
-                                # if we are not going back:
-                                dummy, outNode = edge
-                                if outNode != shortestPath[-2]:
-                                    pathStringAdd = pathString + "+followedBy+" + sentenceDAG[numberID][outNode]["label"] + "~" + sentence["tokens"][outNode]["lemma"]
-                                    if pathStringAdd not in theMatrix:
-                                        theMatrix[pathStringAdd] = {}
-                            
-                                    if locationName not in theMatrix[pathStringAdd]:
-                                        theMatrix[pathStringAdd][locationName] = []
-                        
-                                    theMatrix[pathStringAdd][locationName].append(number)
                                     
-#print theMatrix 
+
                         
 with open(outputFile, "wb") as out:
-    json.dump(theMatrix, out)
+    json.dump(depPath2location2values, out)
     
     
 # print the deps with the most locations:
 dep2counts = {}
-for dep, values in theMatrix.items():
+for dep, values in depPath2location2values.items():
     dep2counts[dep] = len(values)
     
 import operator
@@ -175,4 +196,4 @@ sortedDeps = sorted(dep2counts.iteritems(), key=operator.itemgetter(1), reverse=
 
 for dep in sortedDeps[:50]:
     print dep[0]
-    print theMatrix[dep[0]]
+    print depPath2location2values[dep[0]]

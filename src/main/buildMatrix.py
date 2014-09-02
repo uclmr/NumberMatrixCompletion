@@ -12,6 +12,7 @@ import sys
 import os
 import glob
 import networkx
+import re
 
 # this class def allows us to write:
 #print(json.dumps(np.arange(5), cls=NumPyArangeEncoder))
@@ -29,9 +30,11 @@ def getNumbers(sentence):
         # avoid only tokens known to be dates or part of locations
         # This only takes actual numbers into account thus it ignores things like "one million"
         # and also treating "500 millions" as "500" 
-        if token["ner"] not in ["DATE", "LOCATION"]:
+        if token["ner"] not in ["DATE", "LOCATION", "PERSON", "ORGANIZATION", "MISC"]:
             try:
-                tokenID2number[idx] = float(token["word"]) 
+                # this makes sure that 123,123,123.23 which fails the float test, becomes 123123123.23 which is good
+                tokenWithoutCommas = float(re.sub(",([0-9][0-9][0-9])", "\g<1>", token["word"]))
+                tokenID2number[idx] = float(tokenWithoutCommas) 
             except ValueError:
                 pass
     return tokenID2number
@@ -197,7 +200,7 @@ for jsonFileName in jsonFiles:
                     shortestPaths = getShortestDepPaths(sentenceDAG,  locationTokenIDs, numberTokenID)
                     
                     # ignore paths longer than some number deps (=tokens_on_path + 1)
-                    if len(shortestPaths) > 0 and len(shortestPaths[0]) < 4:
+                    if len(shortestPaths) > 0 and len(shortestPaths[0]) < 10:
                         for shortestPath in shortestPaths:
                             pathStrings = depPath2StringExtend(sentenceDAG, shortestPath)
                             for pathString in pathStrings:
@@ -212,7 +215,7 @@ for jsonFileName in jsonFiles:
                     # now get the surface strings 
                     surfacePatternTokenSeqs = getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenID)   
                     for surfacePatternTokens in surfacePatternTokenSeqs:
-                        if len(surfacePatternTokens) < 10:
+                        if len(surfacePatternTokens) < 15:
                             surfaceString = ",".join(surfacePatternTokens)
                             if surfaceString not in string2location2values:
                                 string2location2values[surfaceString] = {}

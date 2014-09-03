@@ -43,7 +43,7 @@ accountKey = 'ZAk6G5VxGSD+K/mx3QH+PX24x85Cx9lEVnQzXA5H+P0'
 accountKeyEnc = base64.b64encode(accountKey + ':' + accountKey)
 headers = {'Authorization': 'Basic ' + accountKeyEnc}
 
-pathName = "/cs/research/intelsys/home1/avlachos/FactChecking/Bing2"
+pathName = "/cs/research/intelsys/home1/avlachos/FactChecking/Bing"
 
 if not os.path.exists(pathName):
     print "creating dir " + pathName

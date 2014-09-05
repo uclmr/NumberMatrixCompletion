@@ -25,7 +25,8 @@ import re
 
 
 def getNumbers(sentence):
-    tokenID2number = {}
+    # a number can span over multiple tokens
+    tokenIDs2number = {}
     for idx, token in enumerate(sentence["tokens"]):
         # avoid only tokens known to be dates or part of locations
         # This only takes actual numbers into account thus it ignores things like "one million"
@@ -34,10 +35,24 @@ def getNumbers(sentence):
             try:
                 # this makes sure that 123,123,123.23 which fails the float test, becomes 123123123.23 which is good
                 tokenWithoutCommas = float(re.sub(",([0-9][0-9][0-9])", "\g<1>", token["word"]))
-                tokenID2number[idx] = float(tokenWithoutCommas) 
+                number = float(tokenWithoutCommas)
+                ids = [idx]
+                # check the next token if it is million or thousand
+                if len(sentence["tokens"]) > idx+1:
+                    if sentence["tokens"][idx+1]["word"].startswith("million"):
+                        number = number * 1000000
+                        ids.append(idx+1)
+                        print sentence["tokens"]
+                        print number
+                    elif sentence["tokens"][idx+1]["word"].startswith("thousand"):
+                        number = number * 1000
+                        ids.append(idx+1)       
+                        print sentence["tokens"]
+                        print number             
+                tokenIDs2number[tuple(ids)] = number
             except ValueError:
                 pass
-    return tokenID2number
+    return tokenIDs2number
 
 def getLocations(sentence):
     # note that a location can span multiple tokens
@@ -78,22 +93,23 @@ def buildDAGfromSentence(sentence):
             
 # getDepPaths
 # also there can be more than one paths
-def getShortestDepPaths(sentenceDAG, locationTokenIDs, numberTokenID):
+def getShortestDepPaths(sentenceDAG, locationTokenIDs, numberTokenIDs):
     shortestPaths = []
     for locationTokenID in locationTokenIDs:
-        try:
-            # get the shortest paths
-            # get the list as it they are unlikely to be very many and we need to len()                  
-            tempShortestPaths = list(networkx.all_shortest_paths(sentenceDAG, source=locationTokenID, target=numberTokenID))
-            # if the paths found are shorter than the ones we had (or we didn't have any)
-            if (len(shortestPaths) == 0) or len(shortestPaths[0]) > len(tempShortestPaths[0]):
-                shortestPaths = tempShortestPaths
-            # if they have equal length add them
-            elif  len(shortestPaths[0]) == len(tempShortestPaths[0]):
-                shortestPaths.extend(tempShortestPaths)
-        # if not paths were found, do nothing
-        except networkx.exception.NetworkXNoPath:
-            pass
+        for numberTokenID in numberTokenIDs:
+            try:
+                # get the shortest paths
+                # get the list as it they are unlikely to be very many and we need to len()                  
+                tempShortestPaths = list(networkx.all_shortest_paths(sentenceDAG, source=locationTokenID, target=numberTokenID))
+                # if the paths found are shorter than the ones we had (or we didn't have any)
+                if (len(shortestPaths) == 0) or len(shortestPaths[0]) > len(tempShortestPaths[0]):
+                    shortestPaths = tempShortestPaths
+                # if they have equal length add them
+                elif  len(shortestPaths[0]) == len(tempShortestPaths[0]):
+                    shortestPaths.extend(tempShortestPaths)
+            # if not paths were found, do nothing
+            except networkx.exception.NetworkXNoPath:
+                pass
     return shortestPaths
 
 # given the a dep path defined by the nodes, get the string of the lexicalized dep path, possibly extended by one more dep
@@ -123,28 +139,28 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
 
     return strings
 
-def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenID, extend=True):
+def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=True):
     # so this can go either from the location to the number, or the other way around
     # if the number token is before the first token of the location
     tokenSeqs = []
-    if numberTokenID < locationTokenIDs[0]:
-        tokenIDs = range(numberTokenID+1, locationTokenIDs[0])
+    if numberTokenIDs[-1] < locationTokenIDs[0]:
+        tokenIDs = range(numberTokenIDs[-1]+1, locationTokenIDs[0])
     else:
-        tokenIDs = range(locationTokenIDs[-1]+1, numberTokenID)
+        tokenIDs = range(locationTokenIDs[-1]+1, numberTokenIDs[0])
     
     tokens = []
     for id in tokenIDs:
         tokens.append('"' + sentence["tokens"][id]["word"] + '"')
      
-    if numberTokenID < locationTokenIDs[0]:
+    if numberTokenIDs[-1] < locationTokenIDs[0]:
         tokens = ["NUMBER"] + tokens + ["LOCATION"]
     else:
         tokens = ["LOCATION"] + tokens + ["NUMBER"]
     tokenSeqs.append(tokens)
     
     if extend:
-        lhsID = min([numberTokenID] + list(locationTokenIDs))
-        rhsID = max([numberTokenID] + list(locationTokenIDs))
+        lhsID = min(list(numberTokenIDs) + list(locationTokenIDs))
+        rhsID = max(list(numberTokenIDs) + list(locationTokenIDs))
         if lhsID > 1:
             tokenSeqs.append(['"' + sentence["tokens"][lhsID-2]["word"] + '"', '"' + sentence["tokens"][lhsID-1]["word"] + '"'] + tokens)
         elif lhsID == 1:
@@ -182,11 +198,11 @@ for jsonFileName in jsonFiles:
     
     for sentence in parsedSentences:
         
-        tokenID2number = getNumbers(sentence)
+        tokenIDs2number = getNumbers(sentence)
         tokenIDs2location = getLocations(sentence)
         
         # if there was at least one location and one number build the dependency graph:
-        if len(tokenID2number) > 0 and len(tokenIDs2location) > 0:
+        if len(tokenIDs2number) > 0 and len(tokenIDs2location) > 0:
             
             sentenceDAG = buildDAGfromSentence(sentence)
 
@@ -194,10 +210,10 @@ for jsonFileName in jsonFiles:
             # get the pairs of each and find their dependency paths (might be more than one) 
             for locationTokenIDs, location in tokenIDs2location.items():
 
-                for numberTokenID, number in tokenID2number.items():
+                for numberTokenIDs, number in tokenIDs2number.items():
 
                     # keep all the shortest paths between the number and the tokens of the location
-                    shortestPaths = getShortestDepPaths(sentenceDAG,  locationTokenIDs, numberTokenID)
+                    shortestPaths = getShortestDepPaths(sentenceDAG,  locationTokenIDs, numberTokenIDs)
                     
                     # ignore paths longer than some number deps (=tokens_on_path + 1)
                     if len(shortestPaths) > 0 and len(shortestPaths[0]) < 10:
@@ -213,7 +229,7 @@ for jsonFileName in jsonFiles:
                                 depPath2location2values[pathString][location].append(number)
                                 
                     # now get the surface strings 
-                    surfacePatternTokenSeqs = getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenID)   
+                    surfacePatternTokenSeqs = getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs)   
                     for surfacePatternTokens in surfacePatternTokenSeqs:
                         if len(surfacePatternTokens) < 15:
                             surfaceString = ",".join(surfacePatternTokens)

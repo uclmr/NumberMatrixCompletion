@@ -42,13 +42,13 @@ def getNumbers(sentence):
                     if sentence["tokens"][idx+1]["word"].startswith("million"):
                         number = number * 1000000
                         ids.append(idx+1)
-                        print sentence["tokens"]
-                        print number
+                        #print sentence["tokens"]
+                        #print number
                     elif sentence["tokens"][idx+1]["word"].startswith("thousand"):
                         number = number * 1000
                         ids.append(idx+1)       
-                        print sentence["tokens"]
-                        print number             
+                        #print sentence["tokens"]
+                        #print number             
                 tokenIDs2number[tuple(ids)] = number
             except ValueError:
                 pass

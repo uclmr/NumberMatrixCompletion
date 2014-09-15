@@ -8,8 +8,7 @@ This script downloads all statistical regions from FreeBase using a combination 
 import json
 import urllib
 
-
-api_key = "AIzaSyClJFx89pJR0_8yc1nvTClMUzFPj0r1dHA"
+api_key =  open("/cs/research/intelsys/home1/avlachos/freebaseApiKey").read()
 mqlread_url = 'https://www.googleapis.com/freebase/v1/mqlread'
 # use the mid instead of the id as they do need escaping
 mql_query = '[{"mid": null,"name": null, "type": "/location/statistical_region","limit": 100}]'
@@ -17,8 +16,6 @@ mql_query = '[{"mid": null,"name": null, "type": "/location/statistical_region",
 cursor = ""
 
 # we need to have a parameter limit=0 as in:
-
-api_key = "AIzaSyClJFx89pJR0_8yc1nvTClMUzFPj0r1dHA"
 topicService_url = 'https://www.googleapis.com/freebase/v1/topic'
 params = {
   'key': api_key,

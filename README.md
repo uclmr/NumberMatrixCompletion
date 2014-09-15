@@ -17,4 +17,6 @@ Then we run the following bits of Java from the HTML2Stanford:
 HTML2Text
 Text2Parsed2JSON (careful to use the CollapsedCCproccessed dependencies)
 
-And then back to extracting the locations with any numbers that come along.
+And then:
+
+1. buildMatrix.py: this builds a json file which is a dictionary from pattern (string or lexicalized dependencies) to countries/locations and then to the values.

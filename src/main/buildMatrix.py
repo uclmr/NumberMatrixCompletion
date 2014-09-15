@@ -184,10 +184,8 @@ jsonFiles = glob.glob(parsedJSONDir + "/*.json")
 # one json to rule them all
 outputFile = sys.argv[2]
 
-# this forms the columns using the lexicalized dependency paths
-depPath2location2values = {}
-# this forms the columns using the surface patterns
-string2location2values = {}
+# this forms the columns using the lexicalized dependency and surface patterns
+pattern2location2values = {}
 
 print str(len(jsonFiles)) + " files to process"
 
@@ -220,55 +218,31 @@ for jsonFileName in jsonFiles:
                         for shortestPath in shortestPaths:
                             pathStrings = depPath2StringExtend(sentenceDAG, shortestPath)
                             for pathString in pathStrings:
-                                if pathString not in depPath2location2values:
-                                    depPath2location2values[pathString] = {}
+                                if pathString not in pattern2location2values:
+                                    pattern2location2values[pathString] = {}
                             
-                                if location not in depPath2location2values[pathString]:
-                                    depPath2location2values[pathString][location] = []
+                                if location not in pattern2location2values[pathString]:
+                                    pattern2location2values[pathString][location] = []
                         
-                                depPath2location2values[pathString][location].append(number)
+                                pattern2location2values[pathString][location].append(number)
                                 
                     # now get the surface strings 
                     surfacePatternTokenSeqs = getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs)   
                     for surfacePatternTokens in surfacePatternTokenSeqs:
                         if len(surfacePatternTokens) < 15:
                             surfaceString = ",".join(surfacePatternTokens)
-                            if surfaceString not in string2location2values:
-                                string2location2values[surfaceString] = {}
+                            if surfaceString not in pattern2location2values:
+                                pattern2location2values[surfaceString] = {}
                             
-                            if location not in string2location2values[surfaceString]:
-                                string2location2values[surfaceString][location] = []
+                            if location not in pattern2location2values[surfaceString]:
+                                pattern2location2values[surfaceString][location] = []
                         
-                            string2location2values[surfaceString][location].append(number)
+                            pattern2location2values[surfaceString][location].append(number)
                         
 
                         
-with open(outputFile + "_deps.json", "wb") as out:
-    json.dump(depPath2location2values, out)
+with open(outputFile, "wb") as out:
+    json.dump(pattern2location2values, out)
 
-with open(outputFile + "_strs.json", "wb") as out:
-    json.dump(string2location2values, out)
 
     
-# print the deps with the most locations:
-dep2counts = {}
-for dep, values in depPath2location2values.items():
-    dep2counts[dep] = len(values)
-    
-import operator
-sortedDeps = sorted(dep2counts.iteritems(), key=operator.itemgetter(1), reverse=True)
-
-for dep in sortedDeps[:50]:
-    print dep[0]
-    print depPath2location2values[dep[0]]
-    
-# print the string with the most locations:
-str2counts = {}
-for str, values in string2location2values.items():
-    str2counts[str] = len(values)
-    
-sortedStrs = sorted(str2counts.iteritems(), key=operator.itemgetter(1), reverse=True)
-
-for str in sortedStrs[:50]:
-    print str[0]
-    print string2location2values[str[0]]

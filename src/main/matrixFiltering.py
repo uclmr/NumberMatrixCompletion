@@ -11,7 +11,7 @@ import numpy
 import sys
 
 minNumberOfValues = 2
-maxAllowedDeviation = 0.1
+maxAllowedDeviation = 0.05
 minNumberOfLocations = 2
 
 
@@ -20,27 +20,38 @@ with open(sys.argv[1]) as jsonFile:
     pattern2locations2values = json.loads(jsonFile.read())
 
 print "patterns before filtering:", len(pattern2locations2values)
-    
+
+countNotEnoughValues = 0
 for pattern, loc2values in pattern2locations2values.items():
     for loc in loc2values.keys():
         # so if there are not enough values, remove the location from that pattern
         if len(loc2values[loc]) < minNumberOfValues:
             del loc2values[loc]
+            countNotEnoughValues +=1
             
+print "set of values removed for having less than", minNumberOfValues, " of values: ", countNotEnoughValues
+            
+countTooMuchDeviation = 0 
 for pattern, loc2values in pattern2locations2values.items():
     for loc, values in loc2values.items():
         a = numpy.array(values)
         # if the values have a high stdev after normalizing them between 0 and 1 (only positive values)
         # the value should be interpreted as the percentage of the max value allowed as stdev
-        if numpy.std(a/a.max()) > 0.1:
+        if numpy.std(a/a.max()) > maxAllowedDeviation:
             del loc2values[loc]
+            countTooMuchDeviation += 1
             
+print "sets of values removed for having more than", maxAllowedDeviation, " std deviation : ", countTooMuchDeviation            
 
     
 for pattern in pattern2locations2values.keys():
     # now make sure there are enough locations left per pattern
     if len(pattern2locations2values[pattern]) < minNumberOfLocations:
         del pattern2locations2values[pattern]
+    else:
+        # if there are enough values then just keep the average
+        for location in pattern2locations2values[pattern].keys():
+            pattern2locations2values[pattern][location] = numpy.mean(pattern2locations2values[pattern][location])
         
 print "patterns after filtering:",len(pattern2locations2values)
 

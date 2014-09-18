@@ -8,6 +8,9 @@ This script downloads all statistical regions from FreeBase using a combination 
 import json
 import urllib
 
+# TODO: add the part to retrieve the aliases:
+# [{ "mid": null, "name": null, "/common/topic/alias": [], "type": "/location/statistical_region", "limit": 100 }]
+
 api_key =  open("/cs/research/intelsys/home1/avlachos/freebaseApiKey").read()
 mqlread_url = 'https://www.googleapis.com/freebase/v1/mqlread'
 # use the mid instead of the id as they do need escaping

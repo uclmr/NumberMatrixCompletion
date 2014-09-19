@@ -20,3 +20,4 @@ Text2Parsed2JSON (careful to use the CollapsedCCproccessed dependencies)
 And then:
 
 1. buildMatrix.py: this builds a json file which is a dictionary from pattern (string or lexicalized dependencies) to countries/locations and then to the values.
+2. matrixFiltering.py: this takes the matrix from the previous step and filters its values and patterns to avoid those without enough entries or those whose entries have too much deviation so they cannot be sensibly averaged.

@@ -136,7 +136,17 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
             # if we are not going back:
             if outNode != path[-2]:
                 strings.append("+".join(pathStrings + ["NUMBER~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"] ]))
-
+        
+        # do the same for the LOCATION
+        outEdgesFromLocation = sentenceDAG.out_edges_iter([path[0]])
+        for edge in outEdgesFromLocation:
+            # the source of the edge we knew
+            dummy, outNode = edge
+            # if we are not going on the path:
+            if outNode != path[1]:
+                strings.append("+".join(["LOCATION~" + sentenceDAG[path[0]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"]] + pathStrings))
+        
+        
     return strings
 
 def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=True):
@@ -161,15 +171,17 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
     if extend:
         lhsID = min(list(numberTokenIDs) + list(locationTokenIDs))
         rhsID = max(list(numberTokenIDs) + list(locationTokenIDs))
+        # add the two words and the one word before the lhs
+        if lhsID > 0:
+            tokenSeqs.append(['"' + sentence["tokens"][lhsID-1]["word"] + '"'] + tokens)
         if lhsID > 1:
             tokenSeqs.append(['"' + sentence["tokens"][lhsID-2]["word"] + '"', '"' + sentence["tokens"][lhsID-1]["word"] + '"'] + tokens)
-        elif lhsID == 1:
-            tokenSeqs.append(['"' + sentence["tokens"][lhsID-1]["word"] + '"'] + tokens)
-
+            
+        # add the two words and the one word after the rhs
+        if rhsID < len(sentence["tokens"]) - 1:
+            tokenSeqs.append(tokens + ['"' + sentence["tokens"][rhsID+1]["word"] + '"'])        
         if rhsID < len(sentence["tokens"]) - 2:
             tokenSeqs.append(tokens + ['"' + sentence["tokens"][rhsID+1]["word"] + '"', '"' + sentence["tokens"][rhsID+2]["word"] + '"'])
-        elif rhsID == len(sentence["tokens"]) - 2:
-            tokenSeqs.append(tokens + ['"' + sentence["tokens"][rhsID+1]["word"] + '"'])
     return tokenSeqs
     
     

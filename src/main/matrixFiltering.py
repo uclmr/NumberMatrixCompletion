@@ -5,6 +5,10 @@
 # - removes patterns for which location lists are all over the place (high stdev)
 # - removes patterns that have fewer than arg1 location
 
+# The second argument is a list of (FreeBase) region names to their aliases which will
+# to bring condense the matrix (UK and U.K. becoming the same location), but also they
+# prepare us for experiments 
+
 
 import json
 import numpy
@@ -20,6 +24,51 @@ with open(sys.argv[1]) as jsonFile:
     pattern2locations2values = json.loads(jsonFile.read())
 
 print "patterns before filtering:", len(pattern2locations2values)
+
+# load the file
+with open(sys.argv[2]) as jsonFile:
+    region2aliases = json.loads(jsonFile.read())
+
+# so we first need to take the location2aliases dict and turn in into aliases to region
+alias2region = {} 
+for region, aliases in region2aliases.items():
+    # add the location as alias to itself
+    alias2region[region] = region
+    for alias in aliases:
+        # so if this alias is used for a different location
+        if alias in alias2region and region!=alias2region[alias]:            
+            alias2region[alias] = None
+            alias2region[alias.lower()] = None
+        else:
+            # remember to add the lower
+            alias2region[alias] = region
+            alias2region[alias.lower()] = region
+            
+# now filter out the Nones
+for alias, region in alias2region.items():
+    if region == None:
+        print "alias ", alias, " ambiguous"
+        del alias2region[alias]
+
+# ok, let's traverse now all the patterns and any locations we find we match them case independently to the aliases and replace them with the location
+for pattern, locations2values in pattern2locations2values.items():
+    # so here are the locations
+    # we must be careful in case two or more locations are collapsed to the same region
+    regions2values = {} 
+    # for each location
+    for location, values in locations2values.items():
+        # if the location has an alias
+        if location in alias2region or location.lower() in alias2region:
+            # get it
+            region = alias2region[location]
+            # if we haven't added it to the regions
+            if region not in region2values:
+                region2values[region] = values
+            else:
+                region2values[region] = values + region2values[region]
+    # replace the location values of the pattern with the new ones
+    pattern2locations2values[pattern] = regions2values
+
 
 countNotEnoughValues = 0
 for pattern, loc2values in pattern2locations2values.items():
@@ -55,5 +104,5 @@ for pattern in pattern2locations2values.keys():
         
 print "patterns after filtering:",len(pattern2locations2values)
 
-with open(sys.argv[2], "wb") as out:
+with open(sys.argv[3], "wb") as out:
     json.dump(pattern2locations2values, out)

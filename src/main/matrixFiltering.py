@@ -57,15 +57,19 @@ for pattern, locations2values in pattern2locations2values.items():
     regions2values = {} 
     # for each location
     for location, values in locations2values.items():
+        region = location
         # if the location has an alias
-        if location in alias2region or location.lower() in alias2region:
+        if location in alias2region:
             # get it
             region = alias2region[location]
-            # if we haven't added it to the regions
-            if region not in region2values:
-                region2values[region] = values
-            else:
-                region2values[region] = values + region2values[region]
+        elif location.lower() in alias2region:
+            region = alias2region[location.lower()]
+            
+        # if we haven't added it to the regions
+        if region not in regions2values:
+            regions2values[region] = values
+        else:
+            regions2values[region] = values + regions2values[region]
     # replace the location values of the pattern with the new ones
     pattern2locations2values[pattern] = regions2values
 
@@ -86,7 +90,10 @@ for pattern, loc2values in pattern2locations2values.items():
         a = numpy.array(values)
         # if the values have a high stdev after normalizing them between 0 and 1 (only positive values)
         # the value should be interpreted as the percentage of the max value allowed as stdev
-        if numpy.std(a/a.max()) > maxAllowedDeviation:
+        # we need the largest absolute value        
+        largestAbsValue = numpy.abs(a).max()
+        # if we didn't have all 0 
+        if largestAbsValue > 0 and numpy.std(a/largestAbsValue) > maxAllowedDeviation:
             del loc2values[loc]
             countTooMuchDeviation += 1
             

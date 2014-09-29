@@ -144,7 +144,7 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
             dummy, outNode = edge
             # if we are not going on the path:
             if outNode != path[1]:
-                strings.append("+".join(["LOCATION~" + sentenceDAG[path[0]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"]] + pathStrings))
+                strings.append("+".join([sentenceDAG.node[outNode]["lemma"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER"]))
         
         
     return strings

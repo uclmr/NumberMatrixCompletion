@@ -11,7 +11,7 @@ Arg3 are the aliases
 
 import sys
 import json
-from scipy.stats.stats import pearsonr
+#from scipy.stats.stats import pearsonr
 import heapq
 import numpy
 
@@ -50,9 +50,9 @@ for property, region2value in property2region2value.items():
             #print pattern
             #print patternValues
             #print propertyValue
-            corr = pearsonr(patternValues, propertyValues)[0]
-            if not numpy.isnan(corr):
-                pattern2correlation[pattern] = pearsonr(patternValues, propertyValues)[0]
+            #corr = pearsonr(patternValues, propertyValues)[0]
+            #if not numpy.isnan(corr):
+            #    pattern2correlation[pattern] = pearsonr(patternValues, propertyValues)[0]
             scaledAbsDiff = 0.0
             nonZeros = 0
             for idx, val in enumerate(propertyValues):

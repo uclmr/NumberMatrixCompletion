@@ -161,7 +161,7 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
     
     tokens = []
     for id in tokenIDs:
-        if token["ner"] == "O":
+        if sentence["tokens"][id]["ner"] == "O":
             tokens.append('"' + sentence["tokens"][id]["word"] + '"')
         else:
             tokens.append('"' + sentence["tokens"][id]["ner"] + '"')
@@ -177,7 +177,7 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
         rhsID = max(list(numberTokenIDs) + list(locationTokenIDs))
         # add the word to left
         extension = [] 
-        for idx in range(lhs-1, max(-1, lhs-5),-1):
+        for idx in range(lhsID-1, max(-1, lhsID-5),-1):
             if sentence["tokens"][idx]["ner"] == "O":
                 extension = ['"' + sentence["tokens"][idx]["word"] + '"']  + extension
             else:
@@ -187,7 +187,7 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
         
         # and now to the right
         extension = []
-        for idx in range(rhs+1, min(len(sentence["tokens"]), rhs+4)):
+        for idx in range(rhsID+1, min(len(sentence["tokens"]), rhsID+4)):
             if sentence["tokens"][idx]["ner"] == "O":
                 extension.append('"' + sentence["tokens"][idx]["word"] + '"')
             else:

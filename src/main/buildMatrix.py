@@ -13,6 +13,7 @@ import os
 import glob
 import networkx
 import re
+import copy
 
 # this class def allows us to write:
 #print(json.dumps(np.arange(5), cls=NumPyArangeEncoder))
@@ -133,7 +134,7 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
         for edge in outEdgesFromNumber:
             # the source of the edge we knew
             dummy, outNode = edge
-            # if we are not going back:
+            # if we are not going back
             if outNode != path[-2]:
                 strings.append("+".join(pathStrings + ["NUMBER~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"] ]))
         
@@ -142,7 +143,7 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
         for edge in outEdgesFromLocation:
             # the source of the edge we knew
             dummy, outNode = edge
-            # if we are not going on the path:
+            # if we are not going on the path
             if outNode != path[1]:
                 strings.append("+".join([sentenceDAG.node[outNode]["lemma"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER"]))
         
@@ -160,7 +161,10 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
     
     tokens = []
     for id in tokenIDs:
-        tokens.append('"' + sentence["tokens"][id]["word"] + '"')
+        if token["ner"] == "O":
+            tokens.append('"' + sentence["tokens"][id]["word"] + '"')
+        else:
+            tokens.append('"' + sentence["tokens"][id]["ner"] + '"')
      
     if numberTokenIDs[-1] < locationTokenIDs[0]:
         tokens = ["NUMBER"] + tokens + ["LOCATION"]
@@ -171,17 +175,25 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
     if extend:
         lhsID = min(list(numberTokenIDs) + list(locationTokenIDs))
         rhsID = max(list(numberTokenIDs) + list(locationTokenIDs))
-        # add the two words and the one word before the lhs
-        if lhsID > 0:
-            tokenSeqs.append(['"' + sentence["tokens"][lhsID-1]["word"] + '"'] + tokens)
-        if lhsID > 1:
-            tokenSeqs.append(['"' + sentence["tokens"][lhsID-2]["word"] + '"', '"' + sentence["tokens"][lhsID-1]["word"] + '"'] + tokens)
+        # add the word to left
+        extension = [] 
+        for idx in range(lhs-1, max(-1, lhs-5),-1):
+            if sentence["tokens"][idx]["ner"] == "O":
+                extension = ['"' + sentence["tokens"][idx]["word"] + '"']  + extension
+            else:
+                extension = ['"' + sentence["tokens"][idx]["ner"] + '"']  + extension
+            tokenSeqs.append(copy.copy(extension) + tokens)
+        
+        
+        # and now to the right
+        extension = []
+        for idx in range(rhs+1, min(len(sentence["tokens"]), rhs+4)):
+            if sentence["tokens"][idx]["ner"] == "O":
+                extension.append('"' + sentence["tokens"][idx]["word"] + '"')
+            else:
+                extension.append('"' + sentence["tokens"][idx]["ner"] + '"')
+            tokenSeqs.append(tokens + copy.copy(extension))
             
-        # add the two words and the one word after the rhs
-        if rhsID < len(sentence["tokens"]) - 1:
-            tokenSeqs.append(tokens + ['"' + sentence["tokens"][rhsID+1]["word"] + '"'])        
-        if rhsID < len(sentence["tokens"]) - 2:
-            tokenSeqs.append(tokens + ['"' + sentence["tokens"][rhsID+1]["word"] + '"', '"' + sentence["tokens"][rhsID+2]["word"] + '"'])
     return tokenSeqs
     
     

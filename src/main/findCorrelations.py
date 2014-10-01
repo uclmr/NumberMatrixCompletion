@@ -65,10 +65,10 @@ for property, region2value in property2region2value.items():
             #print pattern2correlation[pattern]
     # get the patterns with top 10 correlation with the property
     top10 =  heapq.nsmallest(20, pattern2meanScaledAbsDiff, key=pattern2meanScaledAbsDiff.get)
-    print property
+    #print property
     print region2value
     for pattern in top10:
-        print pattern
+        print pattern.encode('utf-8')
         print pattern2meanScaledAbsDiff[pattern]
         print pattern2region2value[pattern]
     

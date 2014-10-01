@@ -82,6 +82,7 @@ def buildDAGfromSentence(sentence):
     for idx, token in enumerate(sentence["tokens"]):
         sentenceDAG.add_node(idx, word=token["word"])
         sentenceDAG.add_node(idx, lemma=token["lemma"])
+        sentenceDAG.add_node(idx, ner=token["ner"])        
         
     # and now the edges:
     for dependency in sentence["dependencies"]:
@@ -119,13 +120,15 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
     # this keeps the various bits of the string
     pathStrings = []
     # get the first dep which is from the location
-    pathStrings.append("LOCATION~" + sentenceDAG[path[0]][path[1]]["label"])
+    pathStrings.append("LOCATION_SLOT~" + sentenceDAG[path[0]][path[1]]["label"])
     # for the words in between add the lemma and the dep
     for seqOnPath, tokenId in enumerate(path[1:-1]):
-        # the +2 is because we are already on the second node in the path
-        pathStrings.append(sentenceDAG.node[tokenId]["lemma"] + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
+        if sentenceDAG.node[tokenId]["ner"] == "O":
+            pathStrings.append(sentenceDAG.node[tokenId]["lemma"] + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
+        else:
+            pathStrings.append(sentenceDAG.node[tokenId]["ner"] + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
     # add the number bit
-    strings.append("+".join(pathStrings + ["NUMBER"]))
+    strings.append("+".join(pathStrings + ["NUMBER_SLOT"]))
                         
     if extend:                            
         # create additional paths by adding all out-edges from the number token (except for the one taking as back)
@@ -136,7 +139,7 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
             dummy, outNode = edge
             # if we are not going back
             if outNode != path[-2]:
-                strings.append("+".join(pathStrings + ["NUMBER~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"] ]))
+                strings.append("+".join(pathStrings + ["NUMBER_SLOT~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"] ]))
         
         # do the same for the LOCATION
         outEdgesFromLocation = sentenceDAG.out_edges_iter([path[0]])
@@ -145,7 +148,7 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
             dummy, outNode = edge
             # if we are not going on the path
             if outNode != path[1]:
-                strings.append("+".join([sentenceDAG.node[outNode]["lemma"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER"]))
+                strings.append("+".join([sentenceDAG.node[outNode]["lemma"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER_SLOT"]))
         
         
     return strings
@@ -167,9 +170,9 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
             tokens.append('"' + sentence["tokens"][id]["ner"] + '"')
      
     if numberTokenIDs[-1] < locationTokenIDs[0]:
-        tokens = ["NUMBER"] + tokens + ["LOCATION"]
+        tokens = ["NUMBER_SLOT"] + tokens + ["LOCATION_SLOT"]
     else:
-        tokens = ["LOCATION"] + tokens + ["NUMBER"]
+        tokens = ["LOCATION_SLOT"] + tokens + ["NUMBER_SLOT"]
     tokenSeqs.append(tokens)
     
     if extend:
@@ -213,7 +216,7 @@ pattern2location2values = {}
 
 print str(len(jsonFiles)) + " files to process"
 
-for jsonFileName in jsonFiles:
+for fileCounter, jsonFileName in enumerate(jsonFiles):
     print "processing " + jsonFileName
     with open(jsonFileName) as jsonFile:
         parsedSentences = json.loads(jsonFile.read())
@@ -262,8 +265,12 @@ for jsonFileName in jsonFiles:
                                 pattern2location2values[surfaceString][location] = []
                         
                             pattern2location2values[surfaceString][location].append(number)
-                        
-
+    
+    # save every 1000 files
+    if fileCounter % 1000 == 0:   
+        with open(outputFile + "_tmp", "wb") as out:
+            json.dump(pattern2location2values, out)
+        
                         
 with open(outputFile, "wb") as out:
     json.dump(pattern2location2values, out)

@@ -83,7 +83,8 @@ def buildDAGfromSentence(sentence):
         sentenceDAG.add_node(idx, word=token["word"])
         sentenceDAG.add_node(idx, lemma=token["lemma"])
         sentenceDAG.add_node(idx, ner=token["ner"])        
-        
+        sentenceDAG.add_node(idx, pos=token["pos"])
+
     # and now the edges:
     for dependency in sentence["dependencies"]:
         sentenceDAG.add_edge(dependency["head"], dependency["dep"], label=dependency["label"])
@@ -115,20 +116,25 @@ def getShortestDepPaths(sentenceDAG, locationTokenIDs, numberTokenIDs):
     return shortestPaths
 
 # given the a dep path defined by the nodes, get the string of the lexicalized dep path, possibly extended by one more dep
-def depPath2StringExtend(sentenceDAG, path, extend=True):
+def depPath2StringExtend(sentenceDAG, path, locationTokenIDs, numberTokenIDs, extend=True):
     strings = []
     # this keeps the various bits of the string
     pathStrings = []
     # get the first dep which is from the location
     pathStrings.append("LOCATION_SLOT~" + sentenceDAG[path[0]][path[1]]["label"])
     # for the words in between add the lemma and the dep
+    hasContentWord = False
     for seqOnPath, tokenId in enumerate(path[1:-1]):
         if sentenceDAG.node[tokenId]["ner"] == "O":
             pathStrings.append(sentenceDAG.node[tokenId]["lemma"] + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
+            if sentenceDAG.node[tokenId]["pos"][0] in "NVJR":
+                hasContentWord = True
         else:
             pathStrings.append(sentenceDAG.node[tokenId]["ner"] + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
-    # add the number bit
-    strings.append("+".join(pathStrings + ["NUMBER_SLOT"]))
+    
+    if hasContentWord:
+        # add the number bit
+        strings.append("+".join(pathStrings + ["NUMBER_SLOT"]))
                         
     if extend:                            
         # create additional paths by adding all out-edges from the number token (except for the one taking as back)
@@ -138,8 +144,12 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
             # the source of the edge we knew
             dummy, outNode = edge
             # if we are not going back
-            if outNode != path[-2]:
-                strings.append("+".join(pathStrings + ["NUMBER_SLOT~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"] ]))
+            if outNode != path[-2] and outNode not in numberTokenIDs:
+                if sentenceDAG.node[outNode]["ner"] == "O":
+                    if hasContentWord or  sentenceDAG.node[outNode]["pos"][0] in "NVJR":
+                        strings.append("+".join(pathStrings + ["NUMBER_SLOT~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"] ]))
+                elif hasContentWord: 
+                    strings.append("+".join(pathStrings + ["NUMBER_SLOT~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["ner"] ]))
         
         # do the same for the LOCATION
         outEdgesFromLocation = sentenceDAG.out_edges_iter([path[0]])
@@ -147,8 +157,12 @@ def depPath2StringExtend(sentenceDAG, path, extend=True):
             # the source of the edge we knew
             dummy, outNode = edge
             # if we are not going on the path
-            if outNode != path[1]:
-                strings.append("+".join([sentenceDAG.node[outNode]["lemma"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER_SLOT"]))
+            if outNode != path[1] and outNode not in locationTokenIDs:
+                if sentenceDAG.node[outNode]["ner"] == "O":
+                    if hasContentWord or  sentenceDAG.node[outNode]["pos"][0] in "NVJR":
+                        strings.append("+".join([sentenceDAG.node[outNode]["lemma"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER_SLOT"]))
+                elif hasContentWord:
+                    strings.append("+".join([sentenceDAG.node[outNode]["ner"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER_SLOT"]))
         
         
     return strings
@@ -162,10 +176,14 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
     else:
         tokenIDs = range(locationTokenIDs[-1]+1, numberTokenIDs[0])
     
+    # check whether there is a content word: 
+    hasContentWord = False
     tokens = []
     for id in tokenIDs:
         if sentence["tokens"][id]["ner"] == "O":
-            tokens.append('"' + sentence["tokens"][id]["word"] + '"')
+            tokens.append('"' + sentence["tokens"][id]["word"].lower() + '"')
+            if sentence["tokens"][id]["pos"][0] in "NVJR":
+                hasContentWord = True
         else:
             tokens.append('"' + sentence["tokens"][id]["ner"] + '"')
      
@@ -173,29 +191,38 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
         tokens = ["NUMBER_SLOT"] + tokens + ["LOCATION_SLOT"]
     else:
         tokens = ["LOCATION_SLOT"] + tokens + ["NUMBER_SLOT"]
-    tokenSeqs.append(tokens)
+    if hasContentWord:
+        tokenSeqs.append(tokens)
     
     if extend:
         lhsID = min(list(numberTokenIDs) + list(locationTokenIDs))
         rhsID = max(list(numberTokenIDs) + list(locationTokenIDs))
         # add the word to left
-        extension = [] 
+        extension = []
+        extensionHasContentWord = False
         for idx in range(lhsID-1, max(-1, lhsID-5),-1):
             if sentence["tokens"][idx]["ner"] == "O":
-                extension = ['"' + sentence["tokens"][idx]["word"] + '"']  + extension
+                extension = ['"' + sentence["tokens"][idx]["word"].lower() + '"']  + extension
+                if sentence["tokens"][idx]["pos"][0] in "NVJR":
+                    extensionHasContentWord = True
             else:
                 extension = ['"' + sentence["tokens"][idx]["ner"] + '"']  + extension
-            tokenSeqs.append(copy.copy(extension) + tokens)
-        
+            if hasContentWord or extensionHasContentWord:
+                tokenSeqs.append(copy.copy(extension) + tokens)
         
         # and now to the right
         extension = []
+        extensionHasContentWord = False
         for idx in range(rhsID+1, min(len(sentence["tokens"]), rhsID+4)):
             if sentence["tokens"][idx]["ner"] == "O":
-                extension.append('"' + sentence["tokens"][idx]["word"] + '"')
+                extension.append('"' + sentence["tokens"][idx]["word"].lower() + '"')
+                if sentence["tokens"][idx]["pos"][0] in "NVJR":
+                    extensionHasContentWord = True
             else:
                 extension.append('"' + sentence["tokens"][idx]["ner"] + '"')
-            tokenSeqs.append(tokens + copy.copy(extension))
+                
+            if hasContentWord or extensionHasContentWord:    
+                tokenSeqs.append(tokens + copy.copy(extension))
             
     return tokenSeqs
     
@@ -238,12 +265,12 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
                 for numberTokenIDs, number in tokenIDs2number.items():
 
                     # keep all the shortest paths between the number and the tokens of the location
-                    shortestPaths = getShortestDepPaths(sentenceDAG,  locationTokenIDs, numberTokenIDs)
+                    shortestPaths = getShortestDepPaths(sentenceDAG, locationTokenIDs, numberTokenIDs)
                     
                     # ignore paths longer than some number deps (=tokens_on_path + 1)
                     if len(shortestPaths) > 0 and len(shortestPaths[0]) < 10:
                         for shortestPath in shortestPaths:
-                            pathStrings = depPath2StringExtend(sentenceDAG, shortestPath)
+                            pathStrings = depPath2StringExtend(sentenceDAG, shortestPath, locationTokenIDs, numberTokenIDs)
                             for pathString in pathStrings:
                                 if pathString not in pattern2location2values:
                                     pattern2location2values[pathString] = {}

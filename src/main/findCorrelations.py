@@ -17,17 +17,7 @@ import numpy
 
 # load the FreeBase file
 with open(sys.argv[1]) as freebaseFile:
-    region2property2value = json.loads(freebaseFile.read())
-    
-# we need to make it property2region2value
-property2region2value = {}
-for region, property2value in region2property2value.items():
-    for property, value in property2value.items():
-        if property not in property2region2value:
-            property2region2value[property] = {}
-        property2region2value[property][region] = value
-
-#print property2region2value
+    property2region2value = json.loads(freebaseFile.read())
 
 # load the file with the surface patterns
 with open(sys.argv[2]) as jsonFile:

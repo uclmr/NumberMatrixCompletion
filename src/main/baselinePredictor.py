@@ -33,7 +33,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
         for property, trainRegion2value in trainMatrix.items():
             print property, trainRegion2value
             # first get the average
-            self.property2average[property] = numpy.mean(trainRegion2value.values())
+            self.property2average[property] = numpy.median(trainRegion2value.values())
             self.property2patterns[property] = {}
             
             # this is used to store the msaes for each pattern
@@ -63,7 +63,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
                 self.property2patterns[property][pattern] = textMatrix[pattern]
                 print "text pattern: " + pattern.encode('utf-8')
                 print "KLDE:", klde
-                print "MAPE:", self.MAPE(textMatrix[pattern], trainRegion2value)
+                print "MAPE:", abstractPredictor.AbstractPredictor.MAPE(textMatrix[pattern], trainRegion2value)
                 print textMatrix[pattern]
                 
                 # predict
@@ -72,8 +72,10 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
                 
                 # calculate new KLDE
                 newKLDE = self.KLDE(prediction, trainRegion2value)
-                
+                print "KLDE of predictor before adding the pattern:", currentKLDE
+                print "KLDE of predictor after adding the pattern:", newKLDE
                 # if higher than before, remove the last pattern added and break
+                print "newKLDE > currentKLDE:", (newKLDE > currentKLDE)
                 if newKLDE > currentKLDE:
                     del self.property2patterns[property][pattern]
                     break

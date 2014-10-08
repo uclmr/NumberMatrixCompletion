@@ -74,18 +74,22 @@ class AbstractPredictor(object):
     def MAPE(predDict, trueDict):
         absPercentageErrors = []
         keysInCommon = list(set(predDict.keys()) & set(trueDict.keys()))
-        
+        #print keysInCommon
         for key in keysInCommon:
             if trueDict[key] != 0:
                 absError = abs(predDict[key] - trueDict[key])
                 absPercentageErrors.append(absError/abs(trueDict[key]))
-            
-        return numpy.mean(absPercentageErrors)
+        #print absPercentageErrors
+        if len(absPercentageErrors) > 0:    
+            return numpy.mean(absPercentageErrors)
+        else:
+            return "undefined"
 
     # This is the KL-DE1 measure defined in Chen and Yang (2004)        
     @staticmethod
     def KLDE(predDict, trueDict):
-        kldes = []
+        kldes = {}
+        kldes2 = []
         # first we need to get the stdev used in scaling
         # let's use all the values for this, not only the ones in common
         std = numpy.std(trueDict.values())
@@ -94,5 +98,16 @@ class AbstractPredictor(object):
         for key in keysInCommon:
             scaledAbsError = abs(predDict[key] - trueDict[key])/std
             klde = numpy.exp(-scaledAbsError) + scaledAbsError - 1
-            kldes.append(klde)
-        return numpy.mean(kldes)        
+            kldes[key] = klde
+            kldes2.append(klde)
+        #print kldes.values()
+        #print kldes2
+        print kldes.values() == kldes2
+        print numpy.mean(kldes.values())
+        print numpy.mean(kldes2)
+        print numpy.mean(kldes.values()) == numpy.mean(kldes2)
+        kldes2.sort()
+        kldeVals = kldes.values()
+        kldeVals.sort()
+        print numpy.mean(kldeVals) == numpy.mean(kldes2)
+        return numpy.mean(kldes.values())        

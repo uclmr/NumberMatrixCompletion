@@ -2,9 +2,10 @@
 This is a baseline predictor. For each property, it finds the text patterns that correlate the best.
 If the value for a country cannot be predicted in this way, it returns the average of the property
 '''
-
+import operator
 import json
 import numpy
+import random
 
 class AbstractPredictor(object):
     def __init__(self):
@@ -45,7 +46,42 @@ class AbstractPredictor(object):
         
         avgKLDE = predictor.eval(predMatrix, testMatrix)
         return avgKLDE
-        
+    
+    
+    # the params vector is the set of parameters to try out
+    @classmethod
+    def crossValidate(cls, trainMatrix, textMatrix, folds=4, params=[None]):
+        # first construct the folds per relation
+        property2folds = {}
+        # For each property
+        for property, region2value in trainMatrix.items():
+            # create the empty folds
+            property2folds[property] = [{} for _ in xrange(folds)]
+            # shuffle the data points
+            regions = region2value.keys()
+            random.shuffle(regions)
+            for idx, region in enumerate(regions):
+                # pick a fold
+                foldNo = idx % folds
+                property2folds[property][foldNo][region] = region2value[region]
+                
+            
+            
+        for foldNo in xrange(folds):
+            foldTrainMatrix = {}
+            foldTestMatrix = {}
+            for property, data in property2folds.items():
+                for i,  in enumerate(instances):
+                    if (i % folds) == fold:
+                        testingInstances.append(inst)
+                        testingInstancesIndices.append(i)
+                    else:
+                        trainingInstances.append(inst)
+
+      
+        # we return the best params 
+        return bestParams
+            
                 
     @staticmethod
     def eval(predMatrix, testMatrix):
@@ -58,7 +94,7 @@ class AbstractPredictor(object):
             mape = AbstractPredictor.MAPE(predRegion2value, testMatrix[property])
             print "MAPE: ", mape
             MAPEs.append(mape)
-            klde = AbstractPredictor.KLDE(predRegion2value, testMatrix[property])
+            klde = AbstractPredictor.KLDE(predRegion2value, testMatrix[property], True)
             print "KLDE: ", klde
             KLDEs.append(klde)
         #return numpy.mean(MAPEs)
@@ -87,9 +123,8 @@ class AbstractPredictor(object):
 
     # This is the KL-DE1 measure defined in Chen and Yang (2004)        
     @staticmethod
-    def KLDE(predDict, trueDict):
+    def KLDE(predDict, trueDict, verbose=False):
         kldes = {}
-        kldes2 = []
         # first we need to get the stdev used in scaling
         # let's use all the values for this, not only the ones in common
         std = numpy.std(trueDict.values())
@@ -99,15 +134,17 @@ class AbstractPredictor(object):
             scaledAbsError = abs(predDict[key] - trueDict[key])/std
             klde = numpy.exp(-scaledAbsError) + scaledAbsError - 1
             kldes[key] = klde
-            kldes2.append(klde)
-        #print kldes.values()
-        #print kldes2
-        print kldes.values() == kldes2
-        print numpy.mean(kldes.values())
-        print numpy.mean(kldes2)
-        print numpy.mean(kldes.values()) == numpy.mean(kldes2)
-        kldes2.sort()
-        kldeVals = kldes.values()
-        kldeVals.sort()
-        print numpy.mean(kldeVals) == numpy.mean(kldes2)
+        
+        if verbose:
+            sortedKLDEs = sorted(kldes.items(), key=operator.itemgetter(1))
+            print "top-5 predictions"
+            print "region:pred:true"
+            for idx in xrange(5):
+                print sortedKLDEs[idx][0].encode('utf-8'), ":", predDict[sortedKLDEs[idx][0]], ":", trueDict[sortedKLDEs[idx][0]] 
+            print "bottom-5 predictions"
+            for idx in xrange(5):
+                print sortedKLDEs[-idx-1][0].encode('utf-8'), ":", predDict[sortedKLDEs[-idx-1][0]], ":", trueDict[sortedKLDEs[-idx-1][0]]
+                
         return numpy.mean(kldes.values())        
+    
+    

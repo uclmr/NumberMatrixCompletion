@@ -6,7 +6,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
     
     def __init__(self):
         # this keeps the average for each relation
-        self.property2average = {}
+        self.property2median = {}
         # this keeps the patterns for each relation
         # each pattern has a dict of regions and values associated with it 
         self.property2patterns = {}
@@ -24,7 +24,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
         if len(values) > 0:
             return numpy.mean(values)
         else:
-             return self.property2average[property]
+            return self.property2median[property]
          
     
     def train(self, trainMatrix, textMatrix, params): 
@@ -33,7 +33,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
         for property, trainRegion2value in trainMatrix.items():
             print property, trainRegion2value
             # first get the average
-            self.property2average[property] = numpy.median(trainRegion2value.values())
+            self.property2median[property] = numpy.median(trainRegion2value.values())
             self.property2patterns[property] = {}
             
             # this is used to store the msaes for each pattern
@@ -75,7 +75,6 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
                 print "KLDE of predictor before adding the pattern:", currentKLDE
                 print "KLDE of predictor after adding the pattern:", newKLDE
                 # if higher than before, remove the last pattern added and break
-                print "newKLDE > currentKLDE:", (newKLDE > currentKLDE)
                 if newKLDE > currentKLDE:
                     del self.property2patterns[property][pattern]
                     break

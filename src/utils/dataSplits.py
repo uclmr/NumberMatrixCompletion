@@ -25,7 +25,7 @@ trainingPortion = 2.0/3.0
 trainMatrix = {}
 testMatrix = {}
 
-random.seed(13)
+random.seed(3)
 
 for property, region2value in property2region2value.items(): 
     trainMatrix[property] = {}

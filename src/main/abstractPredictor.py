@@ -53,8 +53,8 @@ class AbstractPredictor(object):
         KLDEs = []
         for property, predRegion2value in predMatrix.items():
             print property
-            print "real: ", testMatrix[property]
-            print "predicted: ", predRegion2value
+            #print "real: ", testMatrix[property]
+            #print "predicted: ", predRegion2value
             mape = AbstractPredictor.MAPE(predRegion2value, testMatrix[property])
             print "MAPE: ", mape
             MAPEs.append(mape)

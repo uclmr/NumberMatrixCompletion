@@ -50,7 +50,7 @@ class AbstractPredictor(object):
     
     # the params vector is the set of parameters to try out
     @classmethod
-    def crossValidate(cls, trainMatrix, textMatrix, folds=4, params=[None]):
+    def crossValidate(cls, trainMatrix, textMatrix, folds=4, paramSets=[None]):
         # first construct the folds per relation
         property2folds = {}
         # For each property
@@ -63,22 +63,48 @@ class AbstractPredictor(object):
             for idx, region in enumerate(regions):
                 # pick a fold
                 foldNo = idx % folds
+                # add the datapoint there
                 property2folds[property][foldNo][region] = region2value[region]
-                
-            
-            
-        for foldNo in xrange(folds):
-            foldTrainMatrix = {}
-            foldTestMatrix = {}
-            for property, data in property2folds.items():
-                for i,  in enumerate(instances):
-                    if (i % folds) == fold:
-                        testingInstances.append(inst)
-                        testingInstancesIndices.append(i)
-                    else:
-                        trainingInstances.append(inst)
+        
+        bestParams = None
+        lowestAvgKLDE = float("inf")
 
-      
+        # for each parameter setting
+        for params in paramSets:
+            paramKLDEs = []
+            # for each fold    
+            for foldNo in xrange(folds):
+                # construct the training and test datasets
+                foldTrainMatrix = {}
+                foldTestMatrix = {}
+                # for each property
+                for property, data in property2folds.items():
+                    foldTrainMatrix[property] = {}
+                    for idx in xrange(folds):
+                        if (idx % folds) == foldNo:
+                            # this the test data
+                            foldTestMatrix[property] = data[idx]
+                        else:
+                            # the rest adds to the training data
+                            foldTrainMatrix[property].update(data[idx])
+                # now create a predictor and run the eval
+                predictor = cls()
+                # run the eval
+                klde = predictor.runEval(foldTrainMatrix, textMatrix, foldTestMatrix, params)
+                print "fold:", foldNo, " KLDE:", klde
+                # add the score for the fold
+                paramKLDEs.append(klde)
+            # get the average across folds    
+            avgKLDE = numpy.mean(paramKLDEs)
+            print "params:", params, " avgKLDE:", avgKLDE, "stdKLDE:", numpy.std(paramKLDEs), "foldKLDEs:", paramKLDEs
+            
+            # lower is better
+            if avgKLDE < lowestAvgKLDE:
+                bestParams = params
+                lowestAvgKLDE = avgKLDE
+
+        print "lowestAvgKLDE:", lowestAvgKLDE
+
         # we return the best params 
         return bestParams
             

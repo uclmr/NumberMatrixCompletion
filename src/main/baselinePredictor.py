@@ -93,4 +93,5 @@ if __name__ == "__main__":
     textMatrix = baselinePredictor.loadMatrix(sys.argv[2])
     testMatrix = baselinePredictor.loadMatrix(sys.argv[3])
     
+    baselinePredictor.crossValidate(trainMatrix, textMatrix)
     baselinePredictor.runEval(trainMatrix, textMatrix, testMatrix, None)

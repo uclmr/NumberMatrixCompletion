@@ -32,4 +32,5 @@ if __name__ == "__main__":
     textMatrix = medianPredictor.loadMatrix(sys.argv[2])
     testMatrix = medianPredictor.loadMatrix(sys.argv[3])
     
+    medianPredictor.crossValidate(trainMatrix, textMatrix)
     medianPredictor.runEval(trainMatrix, textMatrix, testMatrix, None)

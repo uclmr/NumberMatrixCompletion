@@ -36,10 +36,12 @@ class AbstractPredictor(object):
     @classmethod
     def runEval(cls, trainMatrix, textMatrix, testMatrix, params):
         predictor = cls()
+        print "Training"
         predictor.train(trainMatrix, textMatrix, params)
-        
+        print "Testing"
         predMatrix = {}
         for property, region2value in testMatrix.items():
+            print property
             predMatrix[property] = {}
             for region in region2value:
                 predMatrix[property][region] = predictor.predict(property, region)
@@ -111,22 +113,32 @@ class AbstractPredictor(object):
                 
     @staticmethod
     def eval(predMatrix, testMatrix):
-        MAPEs = []
-        KLDEs = []
+        property2MAPE = {}
+        property2KLDE = {}
         for property, predRegion2value in predMatrix.items():
             print property
             #print "real: ", testMatrix[property]
             #print "predicted: ", predRegion2value
             mape = AbstractPredictor.MAPE(predRegion2value, testMatrix[property])
             print "MAPE: ", mape
-            MAPEs.append(mape)
+            property2MAPE[property] = mape
             klde = AbstractPredictor.KLDE(predRegion2value, testMatrix[property], True)
             print "KLDE: ", klde
-            KLDEs.append(klde)
+            property2KLDE[property] = klde
         #return numpy.mean(MAPEs)
-        print "avg. MAPE: ", numpy.mean(MAPEs)
-        print "avg. KLDE: ", numpy.mean(KLDEs)
-        return numpy.mean(KLDEs)
+        print "properties ordered by MAPE"
+        sortedMAPEs = sorted(property2MAPE.items(), key=operator.itemgetter(1))
+        for property, mape in sortedMAPEs:
+            print property, ":", mape 
+               
+        print "properties ordered by KLDE"
+        sortedKLDEs = sorted(property2KLDE.items(), key=operator.itemgetter(1))
+        for property, klde in sortedKLDEs:
+            print property, ":", klde 
+        
+        print "avg. MAPE: ", numpy.mean(property2MAPE.values())
+        print "avg. KLDE: ", numpy.mean(property2KLDE.values())
+        return numpy.mean(property2KLDE.values())
     
     # We follow the definitions of Chen and Yang (2004)
     # the second dict does the scaling

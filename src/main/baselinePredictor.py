@@ -20,6 +20,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
             for pattern, region2value in patterns.items():
                 if region in region2value:
                     values.append(region2value[region])
+                    print "region: ", region, " pattern used: ", pattern.encode('utf-8'), " value: ", region2value[region]
         
         if len(values) > 0:
             return numpy.mean(values)

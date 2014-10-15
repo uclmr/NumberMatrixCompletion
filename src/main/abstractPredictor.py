@@ -76,6 +76,7 @@ class AbstractPredictor(object):
             paramKLDEs = []
             # for each fold    
             for foldNo in xrange(folds):
+                print "fold:", foldNo
                 # construct the training and test datasets
                 foldTrainMatrix = {}
                 foldTestMatrix = {}

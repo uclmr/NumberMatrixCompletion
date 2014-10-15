@@ -20,7 +20,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
             for pattern, region2value in patterns.items():
                 if region in region2value:
                     values.append(region2value[region])
-                    print "region: ", region, " pattern used: ", pattern.encode('utf-8'), " value: ", region2value[region]
+                    print "region: ", region.encode('utf-8'), " pattern used: ", pattern.encode('utf-8'), " value: ", region2value[region]
         
         if len(values) > 0:
             return numpy.mean(values)
@@ -93,6 +93,6 @@ if __name__ == "__main__":
     trainMatrix = baselinePredictor.loadMatrix(sys.argv[1])
     textMatrix = baselinePredictor.loadMatrix(sys.argv[2])
     testMatrix = baselinePredictor.loadMatrix(sys.argv[3])
-    
+    random.seed(13)
     baselinePredictor.crossValidate(trainMatrix, textMatrix)
     baselinePredictor.runEval(trainMatrix, textMatrix, testMatrix, None)

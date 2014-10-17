@@ -2,7 +2,10 @@ import abstractPredictor
 import numpy
 from sklearn.preprocessing import Imputer
 from sklearn.linear_model import ElasticNet
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
 from copy import copy
+import operator
 
 class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
     
@@ -20,7 +23,7 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
         
     def predict(self, property, region):
         # we first need to get the text features for that region
-        if region in self.region2row:
+        if region in self.region2row:# and property =="/location/statistical_region/population":
             imputedTextFeatures = self.imputedTextValueMatrix[self.region2row[region]]
             return self.property2regressor[property].predict(imputedTextFeatures)
         else:
@@ -29,7 +32,7 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
     
     def train(self, trainMatrix, textMatrix, params):
         # first we need to train the imputer and impute the training data
-        l1_ratio, l1_strength, minCountries = params
+        minCountries = params[0]
         # get the text data intp a matrix
         originalTextValueMatrix = []
         
@@ -44,10 +47,11 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
         print "Original text features: ", len(textMatrix)
         filteredTextMatrix = {}
         for pattern, region2value in textMatrix.items():
-            if len(set(region2value.keys()) & trainingCountries) >= minCountries:
+            if len(set(region2value.keys()) & trainingCountries) >= minCountries:# and "population" in pattern:
                 filteredTextMatrix[pattern] = copy(region2value)
                 
         print "Text features after removing those less than ", minCountries, " occurrences:", len(filteredTextMatrix)
+        #print filteredTextMatrix
         
         # initialize them to missing value lists using the entries of textMatrix:
         # This should have all the regions we have collected data for
@@ -78,23 +82,36 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
         
         # for each property
         for property, trainRegion2value in trainMatrix.items():
-            print "Training for ", property, " with params l1_ratio ", l1_ratio, " and l1_strength ", l1_strength
+            print "Training for ", property#, " with params l1_ratio ", l1_ratio, " and l1_strength ", l1_strength
             # using the median of the property as back up
             self.property2median[property] = numpy.median(trainRegion2value.values())
             
-            self.property2regressor[property] = ElasticNet(l1_strength, l1_ratio)
+            #self.property2regressor[property] = ElasticNet(l1_strength, l1_ratio)
+            self.property2regressor[property] = LinearRegression()
              
             # first construct the target values
             targetValues = []
             # occasionally we have missing values
             trainingVectors = []
             for region, value in trainRegion2value.items():
-                targetValues.append(value)
-                if region in self.region2row:
+                if region in self.region2row:# and property =="/location/statistical_region/population":
+                    targetValues.append(value)
                     trainingVectors.append(self.imputedTextValueMatrix[self.region2row[region]])
                 else:
                     print "No text patterns for region ", region.encode('utf-8'), " skipping it in training"
+            # Code to inspect the results
+            #if property =="/location/statistical_region/population":
+            #    print numpy.shape(trainingVectors)
+            #    print numpy.shape(targetValues)
             self.property2regressor[property].fit(trainingVectors, targetValues)
+                # this should print the weights learnt
+            #    pattern2weight = {}
+            #    for idx, pattern in enumerate(self.column2pattern):
+            #        pattern2weight[pattern] = self.property2regressor[property].coef_[idx]
+            #    sortedWeights = sorted(pattern2weight.items(), key=operator.itemgetter(1))
+            #    for weight in sortedWeights:
+            #        print weight
+            #    print "intercept:", self.property2regressor[property].intercept_
         
           
 if __name__ == "__main__":
@@ -108,5 +125,6 @@ if __name__ == "__main__":
     testMatrix = linearRegressionPredictor.loadMatrix(sys.argv[3])
     
     random.seed(13)
-    bestParams = linearRegressionPredictor.crossValidate(trainMatrix, textMatrix, 4 ,[[0.5,1.0,0],[0.5,1.0,1],[0.5,1.0,2],[0.5,1.0,3],[0.5,1.0,4]])
+    # experiments with different cut-off thresholds
+    bestParams = linearRegressionPredictor.crossValidate(trainMatrix, textMatrix, 4 ,[[2],[5],[10]])
     linearRegressionPredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

@@ -49,12 +49,13 @@ class AbstractPredictor(object):
         avgKLDE = predictor.eval(predMatrix, testMatrix)
         return avgKLDE
     
-    
     # the params vector is the set of parameters to try out
     @classmethod
     def crossValidate(cls, trainMatrix, textMatrix, folds=4, paramSets=[None]):
         # first construct the folds per relation
         property2folds = {}
+        # we set the same random in order to get the same folds every time
+        random.seed(13)
         # For each property
         for property, region2value in trainMatrix.items():
             # create the empty folds
@@ -107,6 +108,7 @@ class AbstractPredictor(object):
                 lowestAvgKLDE = avgKLDE
 
         print "lowestAvgKLDE:", lowestAvgKLDE
+        print "bestParams: ", bestParams
 
         # we return the best params 
         return bestParams

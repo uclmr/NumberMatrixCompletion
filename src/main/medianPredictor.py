@@ -25,12 +25,13 @@ class MedianPredictor(abstractPredictor.AbstractPredictor):
 if __name__ == "__main__":
     
     import sys
+
     
     medianPredictor = MedianPredictor()
     
     trainMatrix = medianPredictor.loadMatrix(sys.argv[1])
     textMatrix = medianPredictor.loadMatrix(sys.argv[2])
     testMatrix = medianPredictor.loadMatrix(sys.argv[3])
-    random.seed(13)
+
     medianPredictor.crossValidate(trainMatrix, textMatrix)
     medianPredictor.runEval(trainMatrix, textMatrix, testMatrix, None)

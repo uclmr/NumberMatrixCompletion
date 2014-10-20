@@ -10,8 +10,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
         # this keeps the patterns for each relation
         # each pattern has a dict of regions and values associated with it 
         self.property2patterns = {}
-        
-        
+
     def predict(self, property, region):
         # collect all the values for this region found in related patterns
         values = []
@@ -26,9 +25,17 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
             return numpy.mean(values)
         else:
             return self.property2median[property]
+            
+    def train(self, trainMatrix, textMatrix, params=[False]):
+        # whether we are scaling or not
+        scaling = params[0]
+        # if we are scaling, what is the scaling parameter?
+        if scaling:
+            scalingParam=float(params[1])
+            print "Training with KLDE supprt scaling parameter: ", scalingParam
+        else:
+            print "Training without KLDE support scaling"
          
-    
-    def train(self, trainMatrix, textMatrix, params): 
         # for each property, find the patterns that result in improving the average the most
         # it should get better initially as good patterns are added, but then down as worse ones are added
         for property, trainRegion2value in trainMatrix.items():
@@ -45,6 +52,11 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
                 keysInCommon = list(set(region2value.keys()) & set(trainRegion2value.keys()))
                 if len(keysInCommon) > 1:
                     klde = abstractPredictor.AbstractPredictor.KLDE(region2value, trainRegion2value)
+                    if scaling:
+                        # this is a version of KLDE scaled according to how many values were used in the calculation
+                        # see Koren (2008), it is the opposite (lower is better) of the scaling factor in equation 2
+                        scalingFactor = scalingParam/(scalingParam + len(keysInCommon))
+                        klde *= scalingFactor
                     heapq.heappush(patternKLDEs, (klde, pattern))
             
             # now we have the patterns ordered according to their 
@@ -87,6 +99,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
 if __name__ == "__main__":
     
     import sys
+    import random
     
     baselinePredictor = BaselinePredictor()
     
@@ -94,5 +107,5 @@ if __name__ == "__main__":
     textMatrix = baselinePredictor.loadMatrix(sys.argv[2])
     testMatrix = baselinePredictor.loadMatrix(sys.argv[3])
     random.seed(13)
-    baselinePredictor.crossValidate(trainMatrix, textMatrix)
-    baselinePredictor.runEval(trainMatrix, textMatrix, testMatrix, None)
+    bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 4, [[False],[True,0.125],[True,0.25],[True,0.5],[True,1],[True,2],[True,4]])
+    baselinePredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

@@ -1,5 +1,6 @@
 import abstractPredictor
 import numpy
+import scipy
 from sklearn.preprocessing import Imputer
 from sklearn.linear_model import ElasticNet
 from sklearn.linear_model import LinearRegression
@@ -19,13 +20,19 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
         self.column2pattern = []
         self.region2row = {}
         self.property2median = {}
+        # This indicates whether we use the regressor to emulate the neighborhood style model of Koren (2008), eq 6.
+        self.neighborhoodModel = False
         
         
     def predict(self, property, region):
         # we first need to get the text features for that region
         if region in self.region2row:# and property =="/location/statistical_region/population":
             imputedTextFeatures = self.imputedTextValueMatrix[self.region2row[region]]
-            return self.property2regressor[property].predict(imputedTextFeatures)
+            # if we are considering the neighborhood model then we need to add the median back
+            if self.neighborhoodModel:
+                return self.property2median[property] + self.property2regressor[property].predict(imputedTextFeatures)
+            else:
+                return self.property2regressor[property].predict(imputedTextFeatures)
         else:
             print "No text patterns for region ", region.encode('utf-8'), " returning the median for the property"
             return self.property2median[property]           
@@ -33,7 +40,10 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
     def train(self, trainMatrix, textMatrix, params):
         # first we need to train the imputer and impute the training data
         minCountries = params[0]
-        # get the text data intp a matrix
+        # set the parameter whether we are doing the neighborhood model 
+        self.neighborhoodModel = params[1]
+        
+        # get the text data into a matrix
         originalTextValueMatrix = []
         
         # let's get rid of all the text features that do not have values for at least two countries
@@ -58,27 +68,34 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
         for region2value in filteredTextMatrix.values():
             for region in region2value:
                 if region not in self.region2row:
-                    self.region2row[region] = len(originalTextValueMatrix) 
-                    originalTextValueMatrix.append(['NaN']*len(filteredTextMatrix))
+                    self.region2row[region] = len(originalTextValueMatrix)
+                    # if we are doing the neighborhood version, unseen values are zeros
+                    if self.neighborhoodModel:
+                        originalTextValueMatrix.append(scipy.zeros(len(filteredTextMatrix)))
+                    else: 
+                        originalTextValueMatrix.append(['NaN']*len(filteredTextMatrix))
         
         # add the known values            
         for patternNo, (pattern, region2value) in enumerate(filteredTextMatrix.items()):
+            # if we are doing neighborhood, get the median
+            if self.neighborhoodModel:
+                patternMedian = numpy.median(region2value.values())
             self.pattern2column[pattern] = patternNo
             self.column2pattern.append(pattern)          
             for region, value in region2value.items():
-                originalTextValueMatrix[self.region2row[region]][patternNo] = value
+                # if neighborhood, subtract the median
+                if self.neighborhoodModel:
+                    originalTextValueMatrix[self.region2row[region]][patternNo] = value - patternMedian
+                else:
+                    originalTextValueMatrix[self.region2row[region]][patternNo] = value
         print numpy.shape(originalTextValueMatrix)
-        print "Fitting the data imputer"        
-        textValuesImputer = Imputer(missing_values='NaN', strategy='median', axis=0)
-        #print originalTextValueMatrix
-        #print pattern2column
-        #print region2row
-        self.imputedTextValueMatrix = textValuesImputer.fit_transform(originalTextValueMatrix)
-        #print column2pattern[0:30]
-        #print originalTextValueMatrix[0][0:30]
-        #print imputedTextValueMatrix[0][0:30]
-        #print originalTextValueMatrix[1][0:30]
-        #print imputedTextValueMatrix[1][0:30]
+        # if neighborhood, we are done
+        if self.neighborhoodModel:
+            self.imputedTextValueMatrix =  originalTextValueMatrix
+        else:
+            print "Fitting the data imputer"        
+            textValuesImputer = Imputer(missing_values='NaN', strategy='median', axis=0)
+            self.imputedTextValueMatrix = textValuesImputer.fit_transform(originalTextValueMatrix)
         
         # for each property
         for property, trainRegion2value in trainMatrix.items():
@@ -95,7 +112,11 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
             trainingVectors = []
             for region, value in trainRegion2value.items():
                 if region in self.region2row:# and property =="/location/statistical_region/population":
-                    targetValues.append(value)
+                    # if neighborhood, subtract the median
+                    if self.neighborhoodModel:
+                        targetValues.append(value - self.property2median[property])
+                    else:
+                        targetValues.append(value)
                     trainingVectors.append(self.imputedTextValueMatrix[self.region2row[region]])
                 else:
                     print "No text patterns for region ", region.encode('utf-8'), " skipping it in training"
@@ -103,6 +124,11 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
             #if property =="/location/statistical_region/population":
             #    print numpy.shape(trainingVectors)
             #    print numpy.shape(targetValues)
+            #print trainingVectors
+            #print targetValues
+            #print numpy.any(numpy.isnan(trainingVectors)) #False
+            #print numpy.any(numpy.isinf(trainingVectors)) #False
+            #print numpy.all(numpy.isfinite(trainingVectors)) #True
             self.property2regressor[property].fit(trainingVectors, targetValues)
                 # this should print the weights learnt
             #    pattern2weight = {}
@@ -117,14 +143,13 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
 if __name__ == "__main__":
     
     import sys
-    import random
+
     linearRegressionPredictor = LinearRegressionPredictor()
     
     trainMatrix = linearRegressionPredictor.loadMatrix(sys.argv[1])
     textMatrix = linearRegressionPredictor.loadMatrix(sys.argv[2])
     testMatrix = linearRegressionPredictor.loadMatrix(sys.argv[3])
     
-    random.seed(13)
     # experiments with different cut-off thresholds
-    bestParams = linearRegressionPredictor.crossValidate(trainMatrix, textMatrix, 4 ,[[2],[5],[10]])
+    bestParams = linearRegressionPredictor.crossValidate(trainMatrix, textMatrix, 4 ,[[2, True],[2, False]])
     linearRegressionPredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

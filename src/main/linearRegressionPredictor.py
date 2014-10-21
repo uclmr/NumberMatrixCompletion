@@ -147,7 +147,9 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
 if __name__ == "__main__":
     
     import sys
-
+    # underflows are usually small values that go to 0. These usually do not matter unless they are dividers in which case an error is raised.
+    numpy.seterr(all='raise')
+    numpy.seterr(under='ignore')
     linearRegressionPredictor = LinearRegressionPredictor()
     
     trainMatrix = linearRegressionPredictor.loadMatrix(sys.argv[1])
@@ -155,5 +157,5 @@ if __name__ == "__main__":
     testMatrix = linearRegressionPredictor.loadMatrix(sys.argv[3])
     
     # experiments with different cut-off thresholds
-    bestParams = linearRegressionPredictor.crossValidate(trainMatrix, textMatrix, 4 ,[[2, True],[2, False]])
+    bestParams = linearRegressionPredictor.crossValidate(trainMatrix, textMatrix, 4 ,[[0, True],[1, True],[2, True],[3, True],[0, False],[1, False],[2, False],[3, False]])
     linearRegressionPredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

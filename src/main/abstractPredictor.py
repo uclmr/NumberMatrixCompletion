@@ -17,18 +17,23 @@ class AbstractPredictor(object):
         with open(jsonFile) as freebaseFile:
             property2region2value = json.loads(freebaseFile.read())
         
-        print len(property2region2value), " properties"
+
         regions = set([])
         valueCounter = 0
         for property, region2value in property2region2value.items():
             # Check for nan values and remove them
             for region, value in region2value.items():
-                if numpy.isnan(value):
+                if not numpy.isfinite(value):
+                    del region2value[region]
                     print "REMOVED:", value, " for ", region, " ", property
-                    del region2value[region]        
-            valueCounter += len(region2value) 
-            regions = regions.union(set(region2value.keys()))
+            if len(region2value) == 0:
+                del property2region2value[property]
+                print "REMOVED property:", property, " no values left"
+            else:
+                valueCounter += len(region2value) 
+                regions = regions.union(set(region2value.keys()))
 
+        print len(property2region2value), " properties"
         print len(regions),  " unique regions"
         print valueCounter, " values loaded"
         return property2region2value

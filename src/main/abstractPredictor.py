@@ -20,9 +20,15 @@ class AbstractPredictor(object):
         print len(property2region2value), " properties"
         regions = set([])
         valueCounter = 0
-        for region2value in property2region2value.values():
+        for property, region2value in property2region2value.items():
+            # Check for nan values and remove them
+            for region, value in region2value.items():
+                if numpy.isnan(value):
+                    print "REMOVED:", value, " for ", region, " ", property
+                    del region2value[region]        
             valueCounter += len(region2value) 
             regions = regions.union(set(region2value.keys()))
+
         print len(regions),  " unique regions"
         print valueCounter, " values loaded"
         return property2region2value

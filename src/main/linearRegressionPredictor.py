@@ -104,7 +104,11 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
             self.property2median[property] = numpy.median(trainRegion2value.values())
             
             #self.property2regressor[property] = ElasticNet(l1_strength, l1_ratio)
-            self.property2regressor[property] = LinearRegression()
+            # if we are doing the neighborhood model, the intercept/bias is the median of the target values
+            if self.neighborhoodModel:
+                self.property2regressor[property] = LinearRegression(fit_intercept=False)
+            else:
+                self.property2regressor[property] = LinearRegression()
              
             # first construct the target values
             targetValues = []

@@ -6,6 +6,8 @@ import operator
 import json
 import numpy
 import random
+from sklearn.metrics import mean_squared_error
+import math
 
 class AbstractPredictor(object):
     def __init__(self):
@@ -139,6 +141,8 @@ class AbstractPredictor(object):
             klde = AbstractPredictor.KLDE(predRegion2value, testMatrix[property], True)
             print "KLDE: ", klde
             property2KLDE[property] = klde
+            rmse = AbstractPredictor.RMSE(predRegion2value, testMatrix[property])
+            print "RMSE: ", rmse
         #return numpy.mean(MAPEs)
         print "properties ordered by MAPE"
         sortedMAPEs = sorted(property2MAPE.items(), key=operator.itemgetter(1))
@@ -197,6 +201,27 @@ class AbstractPredictor(object):
             for idx in xrange(5):
                 print sortedKLDEs[-idx-1][0].encode('utf-8'), ":", predDict[sortedKLDEs[-idx-1][0]], ":", trueDict[sortedKLDEs[-idx-1][0]]
                 
-        return numpy.mean(kldes.values())        
+        return numpy.mean(kldes.values())
     
-    
+    # This does a scaling according to the number of values actually used in the calculation
+    # The more values used, the lower the score (lower is better)
+    # smaller scaling parameters make the number of values used more important, larger lead to the same as standard KLDE
+    # Inspired by the shrunk correlation coefficient (Koren 2008 equation 2)
+    @staticmethod
+    def supportScaledKLDE(predDict, trueDict, scalingParam=1):
+        klde = AbstractPredictor.KLDE(predDict, trueDict)
+        keysInCommon = list(set(predDict.keys()) & set(trueDict.keys()))               
+        scalingFactor = scalingParam/(scalingParam + len(keysInCommon))
+        return klde * scalingFactor
+
+    @staticmethod
+    def RMSE(predDict, trueDict):
+        keysInCommon = list(set(predDict.keys()) & set(trueDict.keys()))
+        #print keysInCommon
+        y_actual = []
+        y_predicted = []
+        for key in keysInCommon:
+            y_actual.append(trueDict[key])
+            y_predicted.append(predDict[key])
+        return math.sqrt(mean_squared_error(y_actual, y_predicted))
+        

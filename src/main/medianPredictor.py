@@ -14,12 +14,13 @@ class MedianPredictor(abstractPredictor.AbstractPredictor):
          
     
     def train(self, trainMatrix, textMatrix, params): 
-        # for each property, find the patterns that result in improving the average the most
-        # it should get better initially as good patterns are added, but then down as worse ones are added
         for property, trainRegion2value in trainMatrix.items():
             print property, trainRegion2value
-            # first get the median
-            self.property2median[property] = numpy.median(trainRegion2value.values())            
+            if params[0] == "median":
+                self.property2median[property] = numpy.median(trainRegion2value.values())
+            elif params[0] == "mean":
+                self.property2median[property] = numpy.mean(trainRegion2value.values())
+                            
                 
           
 if __name__ == "__main__":
@@ -33,5 +34,5 @@ if __name__ == "__main__":
     textMatrix = medianPredictor.loadMatrix(sys.argv[2])
     testMatrix = medianPredictor.loadMatrix(sys.argv[3])
 
-    medianPredictor.crossValidate(trainMatrix, textMatrix)
-    medianPredictor.runEval(trainMatrix, textMatrix, testMatrix, None)
+    bestParams = medianPredictor.crossValidate(trainMatrix, textMatrix, 4, [["median"],["mean"]])
+    medianPredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

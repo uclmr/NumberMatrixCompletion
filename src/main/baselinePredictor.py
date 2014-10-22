@@ -51,15 +51,13 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
                 # make sure that it has at least two value in common with training data, otherwise we might get spurious stuff
                 keysInCommon = list(set(region2value.keys()) & set(trainRegion2value.keys()))
                 if len(keysInCommon) > 1:
-                    klde = abstractPredictor.AbstractPredictor.KLDE(region2value, trainRegion2value)
                     if scaling:
-                        # this is a version of KLDE scaled according to how many values were used in the calculation
-                        # see Koren (2008), it is the opposite (lower is better) of the scaling factor in equation 2
-                        scalingFactor = scalingParam/(scalingParam + len(keysInCommon))
-                        klde *= scalingFactor
+                        klde = abstractPredictor.AbstractPredictor.supportScaledKLDE(region2value, trainRegion2value, scalingParam)                    
+                    else:
+                        klde = abstractPredictor.AbstractPredictor.KLDE(region2value, trainRegion2value)
                     heapq.heappush(patternKLDEs, (klde, pattern))
             
-            # now we have the patterns ordered according to their 
+            # now we have the patterns ordered according to their klde
             
             # predict
             prediction = {}

@@ -15,7 +15,7 @@ import numpy
 import sys
 
 minNumberOfValues = 2
-maxAllowedDeviation = 0.1
+maxAllowedDeviation = float(sys.argv[4])
 minNumberOfLocations = 2
 
 # helps detect errors

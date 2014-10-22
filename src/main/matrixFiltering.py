@@ -15,9 +15,11 @@ import numpy
 import sys
 
 minNumberOfValues = 2
-maxAllowedDeviation = 0.05
+maxAllowedDeviation = 0.1
 minNumberOfLocations = 2
 
+# helps detect errors
+numpy.seterr(all='raise')
 
 # load the file
 with open(sys.argv[1]) as jsonFile:
@@ -57,6 +59,11 @@ for pattern, locations2values in pattern2locations2values.items():
     regions2values = {} 
     # for each location
     for location, values in locations2values.items():
+        #print location
+        #print values
+        #print numpy.isfinite(values)
+        #if not numpy.all(numpy.isfinite(values)):
+        #    print "ERROR"
         region = location
         # if the location has an alias
         if location in alias2region:
@@ -69,7 +76,7 @@ for pattern, locations2values in pattern2locations2values.items():
         if region not in regions2values:
             regions2values[region] = values
         else:
-            regions2values[region] = values + regions2values[region]
+            regions2values[region].extend(values)
     # replace the location values of the pattern with the new ones
     pattern2locations2values[pattern] = regions2values
 
@@ -86,12 +93,17 @@ print "set of values removed for having less than", minNumberOfValues, " of valu
             
 countTooMuchDeviation = 0 
 for pattern, loc2values in pattern2locations2values.items():
+    #print pattern
     for loc, values in loc2values.items():
+        #print loc
+        #print values
         a = numpy.array(values)
         # if the values have a high stdev after normalizing them between 0 and 1 (only positive values)
         # the value should be interpreted as the percentage of the max value allowed as stdev
-        # we need the largest absolute value        
+        # we need the largest absolute value
+        #print a        
         largestAbsValue = numpy.abs(a).max()
+        #print largestAbsValue
         # if we didn't have all 0 
         if largestAbsValue > 0 and numpy.std(a/largestAbsValue) > maxAllowedDeviation:
             del loc2values[loc]

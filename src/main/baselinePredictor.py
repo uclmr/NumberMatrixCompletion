@@ -52,9 +52,9 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
                 keysInCommon = list(set(region2value.keys()) & set(trainRegion2value.keys()))
                 if len(keysInCommon) > 1:
                     if scaling:
-                        klde = abstractPredictor.AbstractPredictor.supportScaledKLDE(region2value, trainRegion2value, scalingParam)                    
+                        klde = abstractPredictor.AbstractPredictor.supportScaledMASE(region2value, trainRegion2value, scalingParam)                    
                     else:
-                        klde = abstractPredictor.AbstractPredictor.KLDE(region2value, trainRegion2value)
+                        klde = abstractPredictor.AbstractPredictor.MASE(region2value, trainRegion2value)
                     heapq.heappush(patternKLDEs, (klde, pattern))
             
             # now we have the patterns ordered according to their klde

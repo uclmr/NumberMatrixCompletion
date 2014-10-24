@@ -83,11 +83,11 @@ class AbstractPredictor(object):
                 property2folds[property][foldNo][region] = region2value[region]
         
         bestParams = None
-        lowestAvgKLDE = float("inf")
+        lowestAvgMASE = float("inf")
 
         # for each parameter setting
         for params in paramSets:
-            paramKLDEs = []
+            paramMASEs = []
             # for each fold    
             for foldNo in xrange(folds):
                 print "fold:", foldNo
@@ -107,20 +107,20 @@ class AbstractPredictor(object):
                 # now create a predictor and run the eval
                 predictor = cls()
                 # run the eval
-                klde = predictor.runEval(foldTrainMatrix, textMatrix, foldTestMatrix, params)
-                print "fold:", foldNo, " KLDE:", klde
+                mase = predictor.runEval(foldTrainMatrix, textMatrix, foldTestMatrix, params)
+                print "fold:", foldNo, " MASE:", mase
                 # add the score for the fold
-                paramKLDEs.append(klde)
+                paramMASEs.append(mase)
             # get the average across folds    
-            avgKLDE = numpy.mean(paramKLDEs)
-            print "params:", params, " avgKLDE:", avgKLDE, "stdKLDE:", numpy.std(paramKLDEs), "foldKLDEs:", paramKLDEs
+            avgMASE = numpy.mean(paramMASEs)
+            print "params:", params, " avgMASE:", avgMASE, "stdMASE:", numpy.std(paramMASEs), "foldMASes:", paramMASEs
             
             # lower is better
-            if avgKLDE < lowestAvgKLDE:
+            if avgMASE < lowestAvgMASE:
                 bestParams = params
-                lowestAvgKLDE = avgKLDE
+                lowestAvgMASE = avgMASE
 
-        print "lowestAvgKLDE:", lowestAvgKLDE
+        print "lowestAvgMASE:", lowestAvgMASE
         print "bestParams: ", bestParams
 
         # we return the best params 
@@ -131,6 +131,7 @@ class AbstractPredictor(object):
     def eval(predMatrix, testMatrix):
         property2MAPE = {}
         property2KLDE = {}
+        property2MASE = {}
         for property, predRegion2value in predMatrix.items():
             print property
             #print "real: ", testMatrix[property]
@@ -138,11 +139,15 @@ class AbstractPredictor(object):
             mape = AbstractPredictor.MAPE(predRegion2value, testMatrix[property])
             print "MAPE: ", mape
             property2MAPE[property] = mape
-            klde = AbstractPredictor.KLDE(predRegion2value, testMatrix[property], True)
+            klde = AbstractPredictor.KLDE(predRegion2value, testMatrix[property])
             print "KLDE: ", klde
             property2KLDE[property] = klde
             rmse = AbstractPredictor.RMSE(predRegion2value, testMatrix[property])
             print "RMSE: ", rmse
+            mase = AbstractPredictor.MASE(predRegion2value, testMatrix[property], True)
+            print "MASE: ", mase
+            property2MASE[property] = mase
+            
         #return numpy.mean(MAPEs)
         print "properties ordered by MAPE"
         sortedMAPEs = sorted(property2MAPE.items(), key=operator.itemgetter(1))
@@ -153,10 +158,18 @@ class AbstractPredictor(object):
         sortedKLDEs = sorted(property2KLDE.items(), key=operator.itemgetter(1))
         for property, klde in sortedKLDEs:
             print property, ":", klde 
+            
+        print "properties orderd by MASE"
+        sortedMASEs = sorted(property2MASE.items(), key=operator.itemgetter(1))
+        for property, mase in sortedMASEs:
+            print property, ":", mase 
+        
         
         print "avg. MAPE: ", numpy.mean(property2MAPE.values())
         print "avg. KLDE: ", numpy.mean(property2KLDE.values())
-        return numpy.mean(property2KLDE.values())
+        print "avg. MASE: ", numpy.mean(property2MASE.values())
+        # we use MASE as the main metric, which is returned to guide the hyperparamter selection
+        return numpy.mean(property2MASE.values())
     
     # We follow the definitions of Chen and Yang (2004)
     # the second dict does the scaling
@@ -176,6 +189,44 @@ class AbstractPredictor(object):
             return numpy.mean(absPercentageErrors)
         else:
             return "undefined"
+    
+    # This is MASE, proposed in Hyndman 2006
+    # at the moment the evaluation metric of choice
+    # it returns 1 if the method has the same absolute errors as the median of the test set.
+    @staticmethod
+    def MASE(predDict, trueDict, verbose=False):
+        # first let's estimate the error from the median:
+        median = numpy.median(trueDict.values())
+        
+        # calculate the errors of the test median
+        medianAbsErrors = []
+        for value in trueDict.values():
+            medianAbsErrors.append(abs(value - median))
+        
+        # get the scaling factor
+        meanMedianError = numpy.mean(medianAbsErrors)
+        
+        # get those that were predicted
+        keysInCommon = list(set(predDict.keys()) & set(trueDict.keys()))
+        predScaledAbsErrors = {}
+        for key in keysInCommon:
+            predScaledAbsErrors[key] = abs(predDict[key] - trueDict[key])/meanMedianError
+        
+        if verbose:
+            print "MASE results"
+            sortedPredScaledAbsErrors = sorted(predScaledAbsErrors.items(), key=operator.itemgetter(1))
+            print "top-5 predictions"
+            print "region:pred:true"
+            for idx in xrange(5):
+                print sortedPredScaledAbsErrors[idx][0].encode('utf-8'), ":", predDict[sortedPredScaledAbsErrors[idx][0]], ":", trueDict[sortedPredScaledAbsErrors[idx][0]] 
+            print "bottom-5 predictions"
+            for idx in xrange(5):
+                print sortedPredScaledAbsErrors[-idx-1][0].encode('utf-8'), ":", predDict[sortedPredScaledAbsErrors[-idx-1][0]], ":", trueDict[sortedPredScaledAbsErrors[-idx-1][0]]
+                
+        return numpy.mean(predScaledAbsErrors.values())
+                    
+
+        
 
     # This is the KL-DE1 measure defined in Chen and Yang (2004)        
     @staticmethod
@@ -192,6 +243,7 @@ class AbstractPredictor(object):
             kldes[key] = klde
         
         if verbose:
+            print "KLDE results"
             sortedKLDEs = sorted(kldes.items(), key=operator.itemgetter(1))
             print "top-5 predictions"
             print "region:pred:true"
@@ -213,6 +265,13 @@ class AbstractPredictor(object):
         keysInCommon = list(set(predDict.keys()) & set(trueDict.keys()))               
         scalingFactor = scalingParam/(scalingParam + len(keysInCommon))
         return klde * scalingFactor
+
+    @staticmethod
+    def supportScaledMASE(predDict, trueDict, scalingParam=1):
+        mase = AbstractPredictor.MASE(predDict, trueDict)
+        keysInCommon = list(set(predDict.keys()) & set(trueDict.keys()))               
+        scalingFactor = scalingParam/(scalingParam + len(keysInCommon))
+        return mase * scalingFactor        
 
     @staticmethod
     def RMSE(predDict, trueDict):

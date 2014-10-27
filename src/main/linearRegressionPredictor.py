@@ -21,15 +21,15 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
         self.region2row = {}
         self.property2median = {}
         # This indicates whether we use the regressor to emulate the neighborhood style model of Koren (2008), eq 6.
-        self.neighborhoodModel = False
-        
+        # In other words, we are fixing the bias (aka intercept) term to the median, and try to learn the rest        
+        self.fixBiasToMedian = False        
         
     def predict(self, property, region):
         # we first need to get the text features for that region
         if region in self.region2row:# and property =="/location/statistical_region/population":
             imputedTextFeatures = self.imputedTextValueMatrix[self.region2row[region]]
-            # if we are considering the neighborhood model then we need to add the median back
-            if self.neighborhoodModel:
+            # if we are fixing the bias to the median
+            if self.fixBiasToMedian:
                 return self.property2median[property] + self.property2regressor[property].predict(imputedTextFeatures)
             else:
                 return self.property2regressor[property].predict(imputedTextFeatures)
@@ -40,8 +40,8 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
     def train(self, trainMatrix, textMatrix, params):
         # first we need to train the imputer and impute the training data
         minCountries = params[0]
-        # set the parameter whether we are doing the neighborhood model 
-        self.neighborhoodModel = params[1]
+        # set the parameter whether we are fixing the bias to the median 
+        self.fixBiasToMedian = params[1]
         
         # get the text data into a matrix
         originalTextValueMatrix = []
@@ -69,28 +69,28 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
             for region in region2value:
                 if region not in self.region2row:
                     self.region2row[region] = len(originalTextValueMatrix)
-                    # if we are doing the neighborhood version, unseen values are zeros
-                    if self.neighborhoodModel:
+                    # if we are fixing the bias, unseen values are zeros
+                    if self.fixBiasToMedian:
                         originalTextValueMatrix.append(scipy.zeros(len(filteredTextMatrix)))
                     else: 
                         originalTextValueMatrix.append(['NaN']*len(filteredTextMatrix))
         
         # add the known values            
         for patternNo, (pattern, region2value) in enumerate(filteredTextMatrix.items()):
-            # if we are doing neighborhood, get the median
-            if self.neighborhoodModel:
+            # if we are fixing the bias get the median
+            if self.fixBiasToMedian:
                 patternMedian = numpy.median(region2value.values())
             self.pattern2column[pattern] = patternNo
             self.column2pattern.append(pattern)          
             for region, value in region2value.items():
-                # if neighborhood, subtract the median
-                if self.neighborhoodModel:
+                # if bias is fixed, subtract the median
+                if self.fixBiasToMedian:
                     originalTextValueMatrix[self.region2row[region]][patternNo] = value - patternMedian
                 else:
                     originalTextValueMatrix[self.region2row[region]][patternNo] = value
         print numpy.shape(originalTextValueMatrix)
-        # if neighborhood, we are done
-        if self.neighborhoodModel:
+        # if we have fixed the bias, we are done
+        if self.fixBiasToMedian:
             self.imputedTextValueMatrix =  originalTextValueMatrix
         else:
             print "Fitting the data imputer"        
@@ -102,10 +102,10 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
             print "Training for ", property#, " with params l1_ratio ", l1_ratio, " and l1_strength ", l1_strength
             # using the median of the property as back up
             self.property2median[property] = numpy.median(trainRegion2value.values())
-            
             #self.property2regressor[property] = ElasticNet(l1_strength, l1_ratio)
-            # if we are doing the neighborhood model, the intercept/bias is the median of the target values
-            if self.neighborhoodModel:
+            
+            # if we have fixed the bias, do fit it here
+            if self.fixBiasToMedian:
                 self.property2regressor[property] = LinearRegression(fit_intercept=False)
             else:
                 self.property2regressor[property] = LinearRegression()
@@ -116,8 +116,8 @@ class LinearRegressionPredictor(abstractPredictor.AbstractPredictor):
             trainingVectors = []
             for region, value in trainRegion2value.items():
                 if region in self.region2row:# and property =="/location/statistical_region/population":
-                    # if neighborhood, subtract the median
-                    if self.neighborhoodModel:
+                    # if the bias is fixed
+                    if self.fixBiasToMedian:
                         targetValues.append(value - self.property2median[property])
                     else:
                         targetValues.append(value)
@@ -156,6 +156,6 @@ if __name__ == "__main__":
     textMatrix = linearRegressionPredictor.loadMatrix(sys.argv[2])
     testMatrix = linearRegressionPredictor.loadMatrix(sys.argv[3])
     
-    # experiments with different cut-off thresholds
+    # So far it seems like fixing the bias to the median and keeping everything works better.
     bestParams = linearRegressionPredictor.crossValidate(trainMatrix, textMatrix, 4 ,[[0, True],[1, True],[2, True],[3, True],[0, False],[1, False],[2, False],[3, False]])
     linearRegressionPredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

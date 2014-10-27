@@ -32,9 +32,9 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
         # if we are scaling, what is the scaling parameter?
         if scaling:
             scalingParam=float(params[1])
-            print "Training with KLDE supprt scaling parameter: ", scalingParam
+            print "Training with MASE supprt scaling parameter: ", scalingParam
         else:
-            print "Training without KLDE support scaling"
+            print "Training without MASE support scaling"
          
         # for each property, find the patterns that result in improving the average the most
         # it should get better initially as good patterns are added, but then down as worse ones are added
@@ -45,17 +45,17 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
             self.property2patterns[property] = {}
             
             # this is used to store the msaes for each pattern
-            patternKLDEs = []
+            patternMASEs = []
             # we first need to rank all the  text patterns according to their msae
             for pattern, region2value in textMatrix.items():
                 # make sure that it has at least two value in common with training data, otherwise we might get spurious stuff
                 keysInCommon = list(set(region2value.keys()) & set(trainRegion2value.keys()))
                 if len(keysInCommon) > 1:
                     if scaling:
-                        klde = abstractPredictor.AbstractPredictor.supportScaledMASE(region2value, trainRegion2value, scalingParam)                    
+                        mase = abstractPredictor.AbstractPredictor.supportScaledMASE(region2value, trainRegion2value, scalingParam)                    
                     else:
-                        klde = abstractPredictor.AbstractPredictor.MASE(region2value, trainRegion2value)
-                    heapq.heappush(patternKLDEs, (klde, pattern))
+                        mase = abstractPredictor.AbstractPredictor.MASE(region2value, trainRegion2value)
+                    heapq.heappush(patternMASEs, (mase, pattern))
             
             # now we have the patterns ordered according to their klde
             
@@ -64,16 +64,17 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
             for region in trainRegion2value:
                 prediction[region] = self.predict(property, region)
             # calculate the current score with 
-            currentKLDE = self.KLDE(prediction, trainRegion2value)
+            currentMASE = self.MASE(prediction, trainRegion2value)
             while True:
                 # The pattern with the smallest KLDE is indexed at 0
                 # the elememts are (KLDE, pattern) tuples
-                klde, pattern = heapq.heappop(patternKLDEs)
+                mase, pattern = heapq.heappop(patternMASEs)
                 
                 # add it to the classifiers
                 self.property2patterns[property][pattern] = textMatrix[pattern]
                 print "text pattern: " + pattern.encode('utf-8')
-                print "KLDE:", klde
+                print "MASE", mase
+                print "KLDE:", abstractPredictor.AbstractPredictor.KLDE(textMatrix[pattern], trainRegion2value)
                 print "MAPE:", abstractPredictor.AbstractPredictor.MAPE(textMatrix[pattern], trainRegion2value)
                 print textMatrix[pattern]
                 
@@ -82,15 +83,15 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
                     prediction[region] = self.predict(property, region)
                 
                 # calculate new KLDE
-                newKLDE = self.KLDE(prediction, trainRegion2value)
-                print "KLDE of predictor before adding the pattern:", currentKLDE
-                print "KLDE of predictor after adding the pattern:", newKLDE
+                newMASE = self.MASE(prediction, trainRegion2value)
+                print "MASE of predictor before adding the pattern:", currentMASE
+                print "MASE of predictor after adding the pattern:", newMASE
                 # if higher than before, remove the last pattern added and break
-                if newKLDE > currentKLDE:
+                if newMASE > currentMASE:
                     del self.property2patterns[property][pattern]
                     break
                 else:
-                    currentKLDE = newKLDE
+                    currentMASE = newMASE
             
                 
           
@@ -104,5 +105,5 @@ if __name__ == "__main__":
     textMatrix = baselinePredictor.loadMatrix(sys.argv[2])
     testMatrix = baselinePredictor.loadMatrix(sys.argv[3])
 
-    bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 4, [[False],[True,0.125],[True,0.25],[True,0.5],[True,1],[True,2],[True,4]])
+    bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 4, [[False],[True,0.125],[True,0.25],[True,0.5],[True,1],[True,2],[True,4],[True,8],[True,16],[True,32]])
     baselinePredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

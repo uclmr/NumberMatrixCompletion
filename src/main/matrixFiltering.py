@@ -14,9 +14,11 @@ import json
 import numpy
 import sys
 
-minNumberOfValues = 2
-maxAllowedDeviation = float(sys.argv[4])
-minNumberOfLocations = 2
+minNumberOfValues = int(sys.argv[4])
+minNumberOfLocations = int(sys.argv[5])
+maxAllowedDeviation = float(sys.argv[6])
+percentageRemoved = float(sys.argv[7])
+
 
 # helps detect errors
 numpy.seterr(all='raise')
@@ -88,11 +90,15 @@ for pattern, loc2values in pattern2locations2values.items():
         if len(loc2values[loc]) < minNumberOfValues:
             del loc2values[loc]
             countNotEnoughValues +=1
+    if len(loc2values) == 0:
+        del pattern2locations2values[pattern]
             
 print "set of values removed for having less than", minNumberOfValues, " of values: ", countNotEnoughValues
             
 countTooMuchDeviation = 0 
 for pattern, loc2values in pattern2locations2values.items():
+    initialLocations = len(loc2values)
+    locationsRemoved = 0
     #print pattern
     for loc, values in loc2values.items():
         #print loc
@@ -108,7 +114,11 @@ for pattern, loc2values in pattern2locations2values.items():
         if largestAbsValue > 0 and numpy.std(a/largestAbsValue) > maxAllowedDeviation:
             del loc2values[loc]
             countTooMuchDeviation += 1
-            
+            locationsRemoved += 1
+    # if the pattern has many locations with values all over the place, remove it altogether.
+    if float(locationsRemoved)/initialLocations > percentageRemoved:
+        print "pattern ", pattern, " removed because it has more than ",percentageRemoved, " value with large deviation" 
+        del pattern2locations2values[pattern]
 print "sets of values removed for having more than", maxAllowedDeviation, " std deviation : ", countTooMuchDeviation            
 
     

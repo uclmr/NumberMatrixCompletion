@@ -105,5 +105,5 @@ if __name__ == "__main__":
     textMatrix = baselinePredictor.loadMatrix(sys.argv[2])
     testMatrix = baselinePredictor.loadMatrix(sys.argv[3])
 
-    bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 4, [[False],[True, 0.125],[True, 0.25],[True,0.5],[True,1],[True,2],[True,4],[True,8],])
+    bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 4, [[False],[True, 0.03125],[True, 0.0625],[True, 0.125],[True, 0.25],[True,0.5],[True,1],[True,2],[True,4],[True,8],])
     baselinePredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

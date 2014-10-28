@@ -2,9 +2,7 @@ import abstractPredictor
 import numpy
 import scipy
 from sklearn.preprocessing import Imputer
-from sklearn.linear_model import ElasticNet
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import *
 from copy import copy
 import operator
 

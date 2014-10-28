@@ -270,7 +270,7 @@ class AbstractPredictor(object):
     def supportScaledMASE(predDict, trueDict, scalingParam=1):
         mase = AbstractPredictor.MASE(predDict, trueDict)
         keysInCommon = list(set(predDict.keys()) & set(trueDict.keys()))               
-        scalingFactor = scalingParam/(scalingParam + len(keysInCommon))
+        scalingFactor = float(scalingParam)/(scalingParam + len(keysInCommon))
         return mase * scalingFactor        
 
     @staticmethod

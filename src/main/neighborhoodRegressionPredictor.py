@@ -47,7 +47,7 @@ class NeighborhoodRegressionPredictor(abstractPredictor.AbstractPredictor):
         
         # for each property
         for property, trainRegion2value in trainMatrix.items():
-            print "Training for ", property
+            print "Training for ", property, " with params ", params
             propertyDetails = NeighborhoodRegressionPredictor.PropertyDetails()
             self.property2details[property] = propertyDetails
             
@@ -115,6 +115,7 @@ if __name__ == "__main__":
     textMatrix = neighborhoodRegressionPredictor.loadMatrix(sys.argv[2])
     testMatrix = neighborhoodRegressionPredictor.loadMatrix(sys.argv[3])
     
-    # So far it seems like fixing the bias to the median and keeping everything works better.
-    bestParams = neighborhoodRegressionPredictor.crossValidate(trainMatrix, textMatrix, 4 ,[[False, 0, 0],[True, 4, 0.01]])
+    # if the first param is False, the other are ignored and no neighborhood is active.
+    # thus it is the same as regression 0, True
+    bestParams = neighborhoodRegressionPredictor.crossValidate(trainMatrix, textMatrix, 4 ,[[False, 0, 0],[True, 0.5, 0.1],[True, 0.5, 0.05],[True, 0.5, 0.025]])
     neighborhoodRegressionPredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

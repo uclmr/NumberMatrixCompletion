@@ -13,6 +13,7 @@
 import json
 import numpy
 import sys
+import math
 
 minNumberOfValues = int(sys.argv[4])
 minNumberOfLocations = int(sys.argv[5])
@@ -117,8 +118,9 @@ for pattern, loc2values in pattern2locations2values.items():
             locationsRemoved += 1
     # if the pattern has many locations with values all over the place, remove it altogether.
     if float(locationsRemoved)/initialLocations > percentageRemoved:
-        print "pattern ", pattern, " removed because it has more than ",percentageRemoved, " value with large deviation" 
+        print "pattern ", pattern.encode('utf-8'), " removed because it has more than ",percentageRemoved, " value with large deviation" 
         del pattern2locations2values[pattern]
+
 print "sets of values removed for having more than", maxAllowedDeviation, " std deviation : ", countTooMuchDeviation            
 
     
@@ -130,6 +132,12 @@ for pattern in pattern2locations2values.keys():
         # if there are enough values then just keep the average
         for location in pattern2locations2values[pattern].keys():
             pattern2locations2values[pattern][location] = numpy.mean(pattern2locations2values[pattern][location])
+            
+# if the feature has the same values independently of the region, remove it as well:
+for pattern,location2values in pattern2locations2values.items():
+    if min(location2values.values()) == max(location2values.values()):
+        print "Removing pattern ", pattern.encode('utf-8'), " because it has the same values for all locations:", location2values  
+        del pattern2locations2values[pattern]
         
 print "patterns after filtering:",len(pattern2locations2values)
 

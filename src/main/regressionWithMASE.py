@@ -20,14 +20,14 @@ class RegressionWithMASE(abstractPredictor.AbstractPredictor):
     def predict(self, property, region):
 
         if region in self.region2feature2value and property =="/location/statistical_region/population":
-            print "Predicting ", region
+            print "Predicting ", region.encode("utf-8")
             prediction = 0.0
             weights = 0.0
             for feature, value in self.region2feature2value[region].items():
                 if feature in self.property2feature2weight[property]:
                     # set a threshold for a feature to be used
                     if self.property2feature2weight[property][feature] > self.predictionThreshold:
-                        print "active feature ", feature, " value ", value , " weight ", self.property2feature2weight[property][feature]
+                        print "active feature ", feature.encode("utf-8"), " value ", value , " weight ", self.property2feature2weight[property][feature]
                          
                         weights += self.property2feature2weight[property][feature]
                         prediction += value* self.property2feature2weight[property][feature]
@@ -190,5 +190,5 @@ if __name__ == "__main__":
     
     # if the first param is False, the other are ignored and no neighborhood is active.
     # thus it is the same as regression 0, True
-    bestParams = regressionWithMASE.crossValidate(trainMatrix, textMatrix, 4, [[0.25,1,0.9], [0.25,1, 0.8],[0.25,1, 0.7]])
+    bestParams = regressionWithMASE.crossValidate(trainMatrix, textMatrix, 4, [[0.0625,1,0.9], [0.0625,1, 0.8],[0.0625,1, 0.7]])
     regressionWithMASE.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

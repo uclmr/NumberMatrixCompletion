@@ -9,7 +9,7 @@ class MatrixFactorPredictor(abstractPredictor.AbstractPredictor):
         self.propertyOrPattern2vector = {}
         
     def predict(self, property, region):
-        return numpy.dot(self.property2vector[property], self.region2Vector[region])
+        return numpy.dot(self.propertyOrPattern2vector[property], self.region2Vector[region])
     
     # parameters are: dimensions of vectors, learning rate, reg_parameter, iterations
     def train(self, trainMatrix, textMatrix, params=[10,0.1,1, 5000]):
@@ -45,7 +45,7 @@ class MatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                 for region, value in region2value.items():
                     # reconstruction error
                     eij = value - numpy.dot(self.propertyOrPattern2vector[pp],self.region2Vector[region])
-                    print pp, " ", region, " error=",eij
+                    #print pp, " ", region, " error=",eij
                     for k in xrange(dims):
                         self.propertyOrPattern2vector[pp][k] += learningRate * (2 * eij * self.region2Vector[region][k] - regParam * self.propertyOrPattern2vector[pp][k])
                         self.region2Vector[region][k] += learningRate * (2 * eij * self.propertyOrPattern2vector[pp][k] - regParam * self.region2Vector[region][k])        
@@ -74,5 +74,5 @@ if __name__ == "__main__":
     textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
     testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
 
-    bestParams = MatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[10, 0.0001,1, 5000]])
+    bestParams = MatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[10, 0.000000000000001,0.0001, 5000]])
     #MatrixFactorPredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

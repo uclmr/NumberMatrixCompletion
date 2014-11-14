@@ -65,9 +65,9 @@ class MatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                     eij = value - numpy.dot(self.propertyOrPattern2vector[pp],self.region2Vector[region])
                     # if we are scaling
                     if scale:
-                        print "scaling factor for ", pp ,":", propertyOrPattern2scalingFactor[pp]
+                        #print "scaling factor for ", pp ,":", propertyOrPattern2scalingFactor[pp]
                         eij = eij/propertyOrPattern2scalingFactor[pp]
-                    print pp, " ", region, " error=",eij
+                    #print pp, " ", region, " error=",eij
                     for k in xrange(dims):
                         self.propertyOrPattern2vector[pp][k] += learningRate * (2 * eij * self.region2Vector[region][k] - regParam * self.propertyOrPattern2vector[pp][k])
                         self.region2Vector[region][k] += learningRate * (2 * eij * self.propertyOrPattern2vector[pp][k] - regParam * self.region2Vector[region][k])        
@@ -99,5 +99,5 @@ if __name__ == "__main__":
     textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
     testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
 
-    bestParams = MatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[10, 0.000001,0.0001, 5000, True]])
+    bestParams = MatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[10, 0.000000000000001,0.001, 5000, False]])
     #MatrixFactorPredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

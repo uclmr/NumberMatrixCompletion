@@ -21,15 +21,22 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
     
     # parameters are: dimensions of vectors, learning rate, reg_parameter, iterations
     def train(self, trainMatrix, textMatrix, params=[10, 0.1, 1, 5000]):
-        
+    
         dims, learningRate, regParam, iterations = params
         
+        
         # let's get the median for each property:
+        property2meanMedianError = {}
         for property, trainRegion2value in trainMatrix.items():
             self.property2median[property] = numpy.median(trainRegion2value.values())
+            medianErrors = []
+            for value in trainRegion2value.values():
+                medianErrors.append(numpy.abs(self.property2median[property] - value))
+            property2meanMedianError[property] = numpy.mean(medianErrors)
+            
             
         # now let's do the MF for each property separately:
-        for property in trainMatrix.keys(): #["/location/statistical_region/population"]:
+        for property in trainMatrix.keys(): # ["/location/statistical_region/population"]: #
             print property
             trainRegion2value = trainMatrix[property]
             # first let's filter with MASE
@@ -42,7 +49,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                     #print pattern
                     #print region2value
                     mase = abstractPredictor.AbstractPredictor.MASE(region2value, trainRegion2value)
-                    if mase < 0.01:
+                    if mase < 0.1:
                         filteredPatterns.append(pattern)
                     
             print "Patterns left after filtering ", len(filteredPatterns)
@@ -50,6 +57,10 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                 print "no patterns left after filtering, SKIP"
                 continue
             print filteredPatterns
+            
+            # ignore the setting, set it according to the text patterns   
+            dims = max(2, int(numpy.ceil(numpy.sqrt(len(filteredPatterns)))))
+            print "set the dimensions to the square root of the text patterns = ", dims 
         
             # initialize the low dim representations
             # first the property
@@ -92,6 +103,10 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                                 ppVector = pattern2vector[pp]
 
                             eij = value - numpy.dot(ppVector,self.property2region2Vector[property][region])
+                            # this adjusts the error/learning rate: the largest the typical values the lower the rate
+                            #eij /= self.property2median[property] 
+                            #eij /= numpy.square(self.property2median[property])
+                            eij /= property2meanMedianError[property]
                             for k in xrange(dims):
                                 ppVector[k] += learningRate * (2 * eij * self.property2region2Vector[property][region][k] - regParam * ppVector[k])
                                 self.property2region2Vector[property][region][k] += learningRate * (2 * eij * ppVector[k] - regParam * self.property2region2Vector[property][region][k])        
@@ -124,5 +139,5 @@ if __name__ == "__main__":
     textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
     testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
 
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[10, 0.000000000001, 0.1, 100000]])
+    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.00000001, 0.01, 1000000]])
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

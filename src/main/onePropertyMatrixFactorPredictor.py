@@ -1,6 +1,5 @@
 import abstractPredictor
 import numpy
-from astropy.wcs.docstrings import dims
 
 class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
     
@@ -36,7 +35,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
             
             
         # now let's do the MF for each property separately:
-        for property in trainMatrix.keys(): # ["/location/statistical_region/population"]: #
+        for property in  trainMatrix.keys(): #["/location/statistical_region/population"]: #
             print property
             trainRegion2value = trainMatrix[property]
             # first let's filter with MASE
@@ -106,10 +105,11 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                             # this adjusts the error/learning rate: the largest the typical values the lower the rate
                             #eij /= self.property2median[property] 
                             #eij /= numpy.square(self.property2median[property])
+                            # should this be squared? Not sure
                             eij /= property2meanMedianError[property]
                             for k in xrange(dims):
-                                ppVector[k] += learningRate * (2 * eij * self.property2region2Vector[property][region][k] - regParam * ppVector[k])
-                                self.property2region2Vector[property][region][k] += learningRate * (2 * eij * ppVector[k] - regParam * self.property2region2Vector[property][region][k])        
+                                ppVector[k] += (numpy.sqrt(iter) * learningRate) * (2 * eij * self.property2region2Vector[property][region][k] - regParam * ppVector[k])
+                                self.property2region2Vector[property][region][k] += (numpy.sqrt(iter) * learningRate) * (2 * eij * ppVector[k] - regParam * self.property2region2Vector[property][region][k])        
                     
             
                 # let's calculate the squared reconstruction error
@@ -121,9 +121,11 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                         pred = self.predict(property, region)
                         squaredErrors.append(numpy.square(pred - value))
                         preds[region] = pred
-                 
+                mase = abstractPredictor.AbstractPredictor.MASE(preds, trainRegion2value)
                 print "Iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
-                print "Iteration ", iter, " MASE on trainMatrix=", abstractPredictor.AbstractPredictor.MASE(preds, trainRegion2value)
+                print "Iteration ", iter, " MASE on trainMatrix=", mase
+                if mase < 0.000001:
+                    break
                  
 if __name__ == "__main__":
     
@@ -139,5 +141,5 @@ if __name__ == "__main__":
     textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
     testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
 
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.00000001, 0.01, 1000000]])
+    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.00000001, 0.01, 1000]])
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

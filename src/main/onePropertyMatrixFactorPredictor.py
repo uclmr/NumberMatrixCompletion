@@ -18,7 +18,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
         if property in self.property2vector and region in self.property2region2Vector[property]:
             return numpy.dot(self.property2vector[property], self.property2region2Vector[property][region])
         else:
-            print "no vector for property ", property, " or no vector for region ", region, " for this property"
+            print "no vector for property ", property.encode('utf-8'), " or no vector for region ", region.encode('utf-8'), " for this property"
             return self.property2median[property]
         
     def trainRelation(self, d, property, trainMatrix, textMatrix, learningRate, regParam, iterations):
@@ -184,5 +184,5 @@ if __name__ == "__main__":
     textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
     testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
 
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.00000001, 0.01, 1]])
+    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.00000001, 0.01, 100]])
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

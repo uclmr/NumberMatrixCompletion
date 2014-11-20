@@ -2,6 +2,7 @@ import abstractPredictor
 import numpy
 import multiprocessing
 import copy
+import operator
     
 
 class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
@@ -98,10 +99,14 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                         #eij /= self.property2median[property] 
                         #eij /= numpy.square(self.property2median[property])
                         # should this be squared? Not sure
-                        eij /= medianError
+                        eij /= medianError 
                         for k in xrange(dims):
-                            ppVector[k] += (numpy.sqrt(iter) * learningRate) * (2 * eij * region2Vector[region][k] - regParam * ppVector[k])
-                            region2Vector[region][k] += (numpy.sqrt(iter) * learningRate) * (2 * eij * ppVector[k] - regParam * region2Vector[region][k])        
+                            # skip updates that cause overflows 
+                            try:
+                                ppVector[k] += (numpy.sqrt(iter) * learningRate) * (2 * eij * region2Vector[region][k] - regParam * ppVector[k])
+                                region2Vector[region][k] += (numpy.sqrt(iter) * learningRate) * (2 * eij * ppVector[k] - regParam * region2Vector[region][k])
+                            except FloatingPointError:
+                                print "SKIPPING UPDATE for ", k, ":", pp, " ", region
                 
         
             # let's calculate the squared reconstruction error
@@ -116,6 +121,18 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
             mase = abstractPredictor.AbstractPredictor.MASE(preds, trainRegion2value)
             print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
             print property, ", iteration ", iter, " MASE on trainMatrix=", mase
+            
+            euclidDistanceFromPropertyVector = {}
+            pVectorSquare = numpy.dot(propertyVector, propertyVector)
+            for pattern, vector in pattern2vector.items():
+                euclidDistanceFromPropertyVector[pattern] = numpy.sqrt(numpy.dot(vector, vector) - 2 * numpy.dot(vector, propertyVector) + pVectorSquare)
+            
+            sortedPaterns= sorted(euclidDistanceFromPropertyVector.items(), key=operator.itemgetter(1))
+            
+            print "top-10 patterns closest to the property in euclidean distance"
+            for idx in xrange(10):
+                print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1]                 
+            
             if mase < 0.000001:
                 break
         
@@ -146,7 +163,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
 
         # now let's do the MF for each property separately:
         jobs = []
-        for property in trainMatrix.keys(): #["/location/statistical_region/population", "/location/statistical_region/renewable_freshwater_per_capita"]: #
+        for property in trainMatrix.keys(): #, "/location/statistical_region/renewable_freshwater_per_capita"]: #  ["/location/statistical_region/population"]: # 
             job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations,))
             jobs.append(job)
         
@@ -184,5 +201,5 @@ if __name__ == "__main__":
     textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
     testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
 
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.00000001, 0.01, 100]])
+    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.0000001, 0.01, 1000]])
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

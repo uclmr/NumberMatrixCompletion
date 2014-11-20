@@ -106,7 +106,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                                 ppVector[k] += (numpy.sqrt(iter) * learningRate) * (2 * eij * region2Vector[region][k] - regParam * ppVector[k])
                                 region2Vector[region][k] += (numpy.sqrt(iter) * learningRate) * (2 * eij * ppVector[k] - regParam * region2Vector[region][k])
                             except FloatingPointError:
-                                print "SKIPPING UPDATE for ", k, ":", pp, " ", region
+                                print property, ", iteration ", iter, " SKIPPING UPDATE for k ", k, ":", pp.encode('utf-8'), " ", region.encode('utf-8')
                 
         
             # let's calculate the squared reconstruction error
@@ -116,7 +116,10 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
             for region, value in trainRegion2value.items():
                 if region in region2Vector:
                     pred = numpy.dot(propertyVector,region2Vector[region])
-                    squaredErrors.append(numpy.square(pred - value))
+                    try:
+                        squaredErrors.append(numpy.square(pred - value))
+                    except FloatingPointError:
+                        print property, ", iteration ", iter, ", region ", region.encode('utf-8'), " too big, IGNORED"
                     preds[region] = pred
             mase = abstractPredictor.AbstractPredictor.MASE(preds, trainRegion2value)
             print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
@@ -125,12 +128,16 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
             euclidDistanceFromPropertyVector = {}
             pVectorSquare = numpy.dot(propertyVector, propertyVector)
             for pattern, vector in pattern2vector.items():
-                euclidDistanceFromPropertyVector[pattern] = numpy.sqrt(numpy.dot(vector, vector) - 2 * numpy.dot(vector, propertyVector) + pVectorSquare)
+                # if the distance is too high ignore.
+                try:
+                    euclidDistanceFromPropertyVector[pattern] = numpy.sqrt(numpy.dot(vector, vector) - 2 * numpy.dot(vector, propertyVector) + pVectorSquare)
+                except FloatingPointError:
+                    pass
             
             sortedPaterns= sorted(euclidDistanceFromPropertyVector.items(), key=operator.itemgetter(1))
             
             print "top-10 patterns closest to the property in euclidean distance"
-            for idx in xrange(10):
+            for idx in xrange(min(10, len(sortedPaterns))):
                 print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1]                 
             
             if mase < 0.000001:
@@ -201,5 +208,5 @@ if __name__ == "__main__":
     textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
     testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
 
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.0000001, 0.01, 1000]])
+    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.000001, 0.01, 10]])
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

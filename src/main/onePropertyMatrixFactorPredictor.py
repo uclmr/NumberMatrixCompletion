@@ -3,6 +3,7 @@ import numpy
 import multiprocessing
 import copy
 import operator
+from __builtin__ import False
     
 
 class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
@@ -78,14 +79,18 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
         # let's go!
         for iter in xrange(iterations):
             # for each property or pattern
-            for pp in [property] + filteredPatterns:
+            allpps = [property] + filteredPatterns
+            numpy.random.shuffle(allpps)            
+            for pp in allpps:
                 # we might be getting the values from either the train matrix or the 
                 if pp == property:
                     region2value = trainRegion2value
                 else:
                     region2value = textMatrix[pp]
                 # let's try to reconstruct each known value    
-                for region, value in region2value.items():
+                regVals = region2value.items()
+                numpy.random.shuffle(regVals)
+                for region, value in regVals:
                     # we might not have a vector for this region, so ignore
                     if region in region2Vector:
                         # reconstruction error
@@ -101,13 +106,25 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                         # should this be squared? Not sure
                         eij /= medianError 
                         for k in xrange(dims):
-                            # skip updates that cause overflows 
-                            try:
-                                ppVector[k] += (numpy.sqrt(iter) * learningRate) * (2 * eij * region2Vector[region][k] - regParam * ppVector[k])
-                                region2Vector[region][k] += (numpy.sqrt(iter) * learningRate) * (2 * eij * ppVector[k] - regParam * region2Vector[region][k])
-                            except FloatingPointError:
-                                print property, ", iteration ", iter, " SKIPPING UPDATE for k ", k, ":", pp.encode('utf-8'), " ", region.encode('utf-8')
-                
+                            # skip updates that cause overflows
+                            updatedPPVector = False
+                            adjustdedLearningRate = numpy.sqrt(iter) * learningRate
+                            while not updatedPPVector:
+                                try:
+                                    ppVector[k] += adjustdedLearningRate * (2 * eij * region2Vector[region][k] - regParam * ppVector[k])
+                                    updatedPPVector = True
+                                except FloatingPointError:
+                                    # if failed, shrink the learning rate
+                                    adjustdedLearningRate /= 10
+                            
+                            updatedRegionVector = False
+                            while not updatedRegionVector:
+                                try:   
+                                    region2Vector[region][k] += adjustdedLearningRate * (2 * eij * ppVector[k] - regParam * region2Vector[region][k])
+                                    updatedRegionVector = True
+                                except FloatingPointError:
+                                    adjustdedLearningRate /= 10
+                                
         
             # let's calculate the squared reconstruction error
             # maybe look only at the training data?
@@ -119,7 +136,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                     try:
                         squaredErrors.append(numpy.square(pred - value))
                     except FloatingPointError:
-                        print property, ", iteration ", iter, ", region ", region.encode('utf-8'), " too big, IGNORED"
+                        print property, ", iteration ", iter, ", error for region ", region.encode('utf-8'), " too big, IGNORED"
                     preds[region] = pred
             mase = abstractPredictor.AbstractPredictor.MASE(preds, trainRegion2value)
             print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
@@ -208,5 +225,5 @@ if __name__ == "__main__":
     textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
     testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
 
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.000001, 0.01, 10]])
+    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.00000001, 0.01, 10]])
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

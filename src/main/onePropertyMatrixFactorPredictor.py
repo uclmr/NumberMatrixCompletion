@@ -101,28 +101,17 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
 
                         eij = value - numpy.dot(ppVector,region2Vector[region])
                         # this is equivalent to dividing all entries in the matrix by this factor. Would be more efficient to do it like this I guess
-                        #eij /= medianError
+                        eij /= medianError
                         # this is essentially L1 loss
-                        eij = numpy.sign(eij)  
+                        #eij = numpy.sign(eij)  
                         for k in xrange(dims):
-                            # skip updates that cause overflows
-                            #updatedPPVector = False
-                            adjustdedLearningRate = learningRate# * numpy.sqrt(iter)
-                            #while not updatedPPVector:
-                            #    try:
-                            ppVector[k] += adjustdedLearningRate * (2 * eij * region2Vector[region][k] - regParam * ppVector[k])
-                            #        updatedPPVector = True
-                            #    except FloatingPointError:
-                                    # if failed, shrink the learning rate
-                            #        adjustdedLearningRate /= 10
-                            
-                            #updatedRegionVector = False
-                            #while not updatedRegionVector:
-                            #    try:   
-                            region2Vector[region][k] += adjustdedLearningRate * (2 * eij * ppVector[k] - regParam * region2Vector[region][k])
-                            #        updatedRegionVector = True
-                            #    except FloatingPointError:
-                            #        adjustdedLearningRate /= 10
+                            # if the error is relatively low, go for L2 loss, otherwise, L1
+                            if numpy.abs(eij) < 1:
+                                ppVector[k] += learningRate * (2 * eij * region2Vector[region][k] - regParam * ppVector[k])
+                                region2Vector[region][k] += learningRate * (2 * eij * ppVector[k] - regParam * region2Vector[region][k])
+                            else:
+                                ppVector[k] += learningRate * (2 * numpy.sign(eij) * region2Vector[region][k] - regParam * ppVector[k])
+                                region2Vector[region][k] += learningRate * (2 * numpy.sign(eij) * ppVector[k] - regParam * region2Vector[region][k])
                                 
         
             # let's calculate the squared reconstruction error

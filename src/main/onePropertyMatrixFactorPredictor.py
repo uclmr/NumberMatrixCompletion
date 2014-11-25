@@ -57,8 +57,8 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
         dims = max(2, int(numpy.ceil(numpy.sqrt(len(filteredPatterns)))))
         print property, ", set the dimensions to the square root of the text patterns = ", dims 
     
-        regParam /= numpy.power(dims, 0.1)
-        print property, "set the reg param to ", regParam
+        #regParam /= numpy.power(dims, 0.1)
+        #print property, "set the reg param to ", regParam
     
         # initialize the low dim representations
         # first the property
@@ -104,15 +104,15 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
 
                         eij = value - numpy.dot(ppVector,region2Vector[region])
                         # this is equivalent to dividing all entries in the matrix by this factor. Would be more efficient to do it like this I guess
-                        eij /= medianError
+                        #eij /= medianError
                         # this is essentially L1 loss
-                        #eij = numpy.sign(eij)
-                        if numpy.abs(eij) < 1:
-                            ppVector += learningRate * (2 * eij * region2Vector[region] - regParam * ppVector)
-                            region2Vector[region] += learningRate * (2 * eij * ppVector - regParam * region2Vector[region])
-                        else:
-                            ppVector += learningRate * (2 * numpy.sign(eij) * region2Vector[region] - regParam * ppVector)
-                            region2Vector[region] += learningRate * (2 * numpy.sign(eij) * ppVector - regParam * region2Vector[region])                            
+                        eij = numpy.sign(eij)
+                        #if numpy.abs(eij) < 1:
+                        ppVector += learningRate * (2 * eij * region2Vector[region] - regParam * ppVector)
+                        region2Vector[region] += learningRate * (2 * eij * ppVector - regParam * region2Vector[region])
+                        #else:
+                        #    ppVector += learningRate * (2 * numpy.sign(eij) * region2Vector[region] - regParam * ppVector)
+                        #    region2Vector[region] += learningRate * (2 * numpy.sign(eij) * ppVector - regParam * region2Vector[region])                            
         
             # let's calculate the squared reconstruction error
             # maybe look only at the training data?
@@ -180,11 +180,11 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
         # now let's do the MF for each property separately:
         jobs = []
         for property in trainMatrix.keys(): #, "/location/statistical_region/renewable_freshwater_per_capita"]: #  
-            if property in ["/location/statistical_region/fertility_rate", "/location/statistical_region/population"]:
-                job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations,))
-                jobs.append(job)
-            else:
-                self.property2median[property] = numpy.median(trainMatrix[property].values())
+            #if property in ["/location/statistical_region/fertility_rate", "/location/statistical_region/population"]:
+            job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations,))
+            jobs.append(job)
+            #else:
+            #    self.property2median[property] = numpy.median(trainMatrix[property].values())
         
         # Start the processes (i.e. calculate the random number lists)        
         for j in jobs:
@@ -220,5 +220,5 @@ if __name__ == "__main__":
     textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
     testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
 
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.01, 1, 1000]])
+    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.0001, 0.1, 10000]])
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

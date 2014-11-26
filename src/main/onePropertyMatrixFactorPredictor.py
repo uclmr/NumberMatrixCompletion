@@ -159,9 +159,9 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                     
     
     # parameters are: dimensions of vectors, learning rate, reg_parameter, iterations
-    def train(self, trainMatrix, textMatrix, params=[10, 0.1, 1, 5000]):
+    def train(self, trainMatrix, textMatrix, params=[0.1, 1, 5000]):
     
-        dims, learningRate, regParam, iterations = params                    
+        learningRate, regParam, iterations = params                    
 
         #propertyQueue = multiprocessing.Queue(maxsize=0)
         #num_threads = 3
@@ -180,7 +180,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
         # now let's do the MF for each property separately:
         jobs = []
         for property in trainMatrix.keys(): #, "/location/statistical_region/renewable_freshwater_per_capita"]: #  
-            #if property in ["/location/statistical_region/fertility_rate", "/location/statistical_region/population"]:
+            #if property in ["/location/statistical_region/fertility_rate"]: # , "/location/statistical_region/population"
             job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations,))
             jobs.append(job)
             #else:
@@ -219,6 +219,10 @@ if __name__ == "__main__":
     trainMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[1])
     textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
     testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
-
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[100, 0.0001, 0.1, 10000]])
+    
+    learningRate = float(sys.argv[4])
+    l2penalty = float(sys.argv[5])
+    iterations = int(sys.argv[6])
+    
+    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[learningRate, l2penalty, iterations]])
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

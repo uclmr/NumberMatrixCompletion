@@ -29,8 +29,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
         print property, " training starting now"
         median = numpy.median(trainRegion2value.values())
         
-        # first let's filter with MASE
-        # anything that is worse than the median predictor (MASE) > 1 should go.
+        # first let's filter
         filteredPatterns = []
         for pattern, region2value in textMatrix.items():
             # make sure that it has at least two value in common with training data, otherwise we might get spurious stuff
@@ -38,8 +37,8 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
             if len(keysInCommon) > 1:
                 #print pattern
                 #print region2value
-                mase = abstractPredictor.AbstractPredictor.MASE(region2value, trainRegion2value)
-                if mase < filterThreshold:
+                mape = abstractPredictor.AbstractPredictor.MAPE(region2value, trainRegion2value)
+                if mape < filterThreshold:
                     filteredPatterns.append(pattern)
                 
         print property, ", patterns left after filtering ", len(filteredPatterns)
@@ -123,10 +122,12 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                     except FloatingPointError:
                         print property, ", iteration ", iter, ", error for region ", region.encode('utf-8'), " too big, IGNORED"
                     preds[region] = pred
-            mase = abstractPredictor.AbstractPredictor.MASE(preds, trainRegion2value)
+            #mase = abstractPredictor.AbstractPredictor.MASE(preds, trainRegion2value)
+            mape = abstractPredictor.AbstractPredictor.MAPE(preds, trainRegion2value)
             print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
             print property, ", iteration ", iter, " reconstruction mean absolute error on trainMatrix=", numpy.mean(absoluteErrors)
-            print property, ", iteration ", iter, " MASE on trainMatrix=", mase
+            #print property, ", iteration ", iter, " MASE on trainMatrix=", mase
+            print property, ", iteration ", iter, " MAPE on trainMatrix=", mape
             
             euclidDistanceFromPropertyVector = {}
             pVectorSquare = numpy.dot(propertyVector, propertyVector)
@@ -149,7 +150,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                 else:
                     print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1], ": NaN"
             
-            if mase < 0.000001:
+            if mape < 0.000001:
                 break
         
         d[property] = (median, propertyVector, region2Vector)

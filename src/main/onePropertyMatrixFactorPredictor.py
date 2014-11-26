@@ -23,15 +23,11 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
             print "no vector for property ", property.encode('utf-8'), " or no vector for region ", region.encode('utf-8'), " for this property"
             return self.property2median[property]
         
-    def trainRelation(self, d, property, trainMatrix, textMatrix, learningRate, regParam, iterations):
+    def trainRelation(self, d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold):
         #property = propertyQueue.get()
         trainRegion2value = trainMatrix[property]
         print property, " training starting now"
         median = numpy.median(trainRegion2value.values())
-        medianErrors = []
-        for value in trainRegion2value.values():
-            medianErrors.append(numpy.abs(median - value))
-        medianError = numpy.mean(medianErrors)
         
         # first let's filter with MASE
         # anything that is worse than the median predictor (MASE) > 1 should go.
@@ -43,7 +39,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                 #print pattern
                 #print region2value
                 mase = abstractPredictor.AbstractPredictor.MASE(region2value, trainRegion2value)
-                if mase < 0.1:
+                if mase < filterThreshold:
                     filteredPatterns.append(pattern)
                 
         print property, ", patterns left after filtering ", len(filteredPatterns)
@@ -103,8 +99,6 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                             ppVector = pattern2vector[pp]
 
                         eij = value - numpy.dot(ppVector,region2Vector[region])
-                        # this is equivalent to dividing all entries in the matrix by this factor. Would be more efficient to do it like this I guess
-                        #eij /= medianError
                         # this is essentially L1 loss
                         eij = numpy.sign(eij)
                         #if numpy.abs(eij) < 1:
@@ -145,9 +139,15 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
             
             sortedPaterns= sorted(euclidDistanceFromPropertyVector.items(), key=operator.itemgetter(1))
             
-            print "top-10 patterns closest to the property in euclidean distance"
+            print "top-10 patterns closest to the property in euclidean distance : distance from property : distance from pattern above"
             for idx in xrange(min(10, len(sortedPaterns))):
-                print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1]                 
+                if idx > 0:
+                    euclideanDistanceFromPreviousProperty = numpy.sqrt(numpy.dot(pattern2vector[sortedPaterns[idx][0]], pattern2vector[sortedPaterns[idx][0]]) \
+                                                                        + numpy.dot(pattern2vector[sortedPaterns[idx-1][0]], pattern2vector[sortedPaterns[idx-1][0]]) \
+                                                                        - 2* numpy.dot(pattern2vector[sortedPaterns[idx][0]], pattern2vector[sortedPaterns[idx-1][0]]))
+                    print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1], ":", euclideanDistanceFromPreviousProperty
+                else:
+                    print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1], ": NaN"
             
             if mase < 0.000001:
                 break
@@ -158,10 +158,10 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
         
                     
     
-    # parameters are: dimensions of vectors, learning rate, reg_parameter, iterations
-    def train(self, trainMatrix, textMatrix, params=[0.1, 1, 5000]):
+    # parameters are: learning rate, reg_parameter, iterations, filtering threshold
+    def train(self, trainMatrix, textMatrix, params=[0.1, 1, 5000, 0.1]):
     
-        learningRate, regParam, iterations = params                    
+        learningRate, regParam, iterations, filterThreshold = params                    
 
         #propertyQueue = multiprocessing.Queue(maxsize=0)
         #num_threads = 3
@@ -181,7 +181,7 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
         jobs = []
         for property in trainMatrix.keys(): #, "/location/statistical_region/renewable_freshwater_per_capita"]: #  
             #if property in ["/location/statistical_region/fertility_rate"]: # , "/location/statistical_region/population"
-            job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations,))
+            job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold,))
             jobs.append(job)
             #else:
             #    self.property2median[property] = numpy.median(trainMatrix[property].values())
@@ -223,6 +223,7 @@ if __name__ == "__main__":
     learningRate = float(sys.argv[4])
     l2penalty = float(sys.argv[5])
     iterations = int(sys.argv[6])
+    filterThreshold = float(sys.argv[7])
     
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[learningRate, l2penalty, iterations]])
+    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[learningRate, l2penalty, iterations, filterThreshold]])
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

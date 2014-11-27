@@ -32,9 +32,9 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
         # if we are scaling, what is the scaling parameter?
         if scaling:
             scalingParam=float(params[1])
-            print "Training with MASE supprt scaling parameter: ", scalingParam
+            print "Training with MAPE supprt scaling parameter: ", scalingParam
         else:
-            print "Training without MASE support scaling"
+            print "Training without MAPE support scaling"
          
         # for each property, find the patterns that result in improving the average the most
         # it should get better initially as good patterns are added, but then down as worse ones are added
@@ -45,53 +45,50 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
             self.property2patterns[property] = {}
             
             # this is used to store the msaes for each pattern
-            patternMASEs = []
+            patternMAPEs = []
             # we first need to rank all the  text patterns according to their msae
             for pattern, region2value in textMatrix.items():
                 # make sure that it has at least two value in common with training data, otherwise we might get spurious stuff
                 keysInCommon = list(set(region2value.keys()) & set(trainRegion2value.keys()))
                 if len(keysInCommon) > 1:
                     if scaling:
-                        mase = abstractPredictor.AbstractPredictor.supportScaledMASE(region2value, trainRegion2value, scalingParam)                    
+                        mape = abstractPredictor.AbstractPredictor.supportScaledMAPE(region2value, trainRegion2value, scalingParam)                    
                     else:
-                        mase = abstractPredictor.AbstractPredictor.MASE(region2value, trainRegion2value)
-                    heapq.heappush(patternMASEs, (mase, pattern))
-            
-            # now we have the patterns ordered according to their klde
+                        mape = abstractPredictor.AbstractPredictor.MAPE(region2value, trainRegion2value)
+                    heapq.heappush(patternMAPEs, (mape, pattern))
             
             # predict
             prediction = {}
             for region in trainRegion2value:
                 prediction[region] = self.predict(property, region)
             # calculate the current score with 
-            currentMASE = self.MASE(prediction, trainRegion2value)
+            currentMAPE = self.MAPE(prediction, trainRegion2value)
             while True:
-                # The pattern with the smallest KLDE is indexed at 0
-                # the elememts are (KLDE, pattern) tuples
-                mase, pattern = heapq.heappop(patternMASEs)
+                # The pattern with the smallest MAPE is indexed at 0
+                # the elememts are (MAPE, pattern) tuples
+                mape, pattern = heapq.heappop(patternMAPEs)
                 
                 # add it to the classifiers
                 self.property2patterns[property][pattern] = textMatrix[pattern]
                 print "text pattern: " + pattern.encode('utf-8')
-                print "MASE", mase
-                print "KLDE:", abstractPredictor.AbstractPredictor.KLDE(textMatrix[pattern], trainRegion2value)
-                print "MAPE:", abstractPredictor.AbstractPredictor.MAPE(textMatrix[pattern], trainRegion2value)
+                print "MAPE:", mape                
+                print "MASE", abstractPredictor.AbstractPredictor.MASE(textMatrix[pattern], trainRegion2value)
                 print textMatrix[pattern]
                 
                 # predict
                 for region in trainRegion2value:
                     prediction[region] = self.predict(property, region)
                 
-                # calculate new KLDE
-                newMASE = self.MASE(prediction, trainRegion2value)
-                print "MASE of predictor before adding the pattern:", currentMASE
-                print "MASE of predictor after adding the pattern:", newMASE
+                # calculate new MAPE
+                newMAPE = self.MAPE(prediction, trainRegion2value)
+                print "MAPE of predictor before adding the pattern:", currentMAPE
+                print "MAPE of predictor after adding the pattern:", newMAPE
                 # if higher than before, remove the last pattern added and break
-                if newMASE > currentMASE:
+                if newMAPE > currentMAPE:
                     del self.property2patterns[property][pattern]
                     break
                 else:
-                    currentMASE = newMASE
+                    currentMAPE = newMAPE
             
                 
           

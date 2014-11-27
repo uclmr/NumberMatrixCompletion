@@ -122,11 +122,11 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                     except FloatingPointError:
                         print property, ", iteration ", iter, ", error for region ", region.encode('utf-8'), " too big, IGNORED"
                     preds[region] = pred
-            #mase = abstractPredictor.AbstractPredictor.MASE(preds, trainRegion2value)
+            mase = abstractPredictor.AbstractPredictor.MASE(preds, trainRegion2value)
             mape = abstractPredictor.AbstractPredictor.MAPE(preds, trainRegion2value)
             print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
             print property, ", iteration ", iter, " reconstruction mean absolute error on trainMatrix=", numpy.mean(absoluteErrors)
-            #print property, ", iteration ", iter, " MASE on trainMatrix=", mase
+            print property, ", iteration ", iter, " MASE on trainMatrix=", mase
             print property, ", iteration ", iter, " MAPE on trainMatrix=", mape
             
             euclidDistanceFromPropertyVector = {}

@@ -56,6 +56,9 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         # initialize the low dim representations
         # first the property
         propertyVector = numpy.random.rand(dims)
+        
+        # get the median for error scaling
+        medianAbs = numpy.abs(numpy.median(trainRegion2value.values()))
 
         # then the patterns and the regions
         region2Vector = {}            
@@ -96,14 +99,14 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                             ppVector = pattern2vector[pp]
 
                         eij = value - numpy.dot(ppVector,region2Vector[region])
-                        # this is essentially L1 loss
-                        eij = numpy.sign(eij)
-                        #if numpy.abs(eij) < 1:
+                        # scale it
+                        eij /= medianAbs
+                        if numpy.abs(eij) > 1:
+                            # this is essentially L1 loss                        
+                            eij = numpy.sign(eij)
+                            #if numpy.abs(eij) < 1:
                         ppVector += learningRate * (2 * eij * region2Vector[region] - regParam * ppVector)
                         region2Vector[region] += learningRate * (2 * eij * ppVector - regParam * region2Vector[region])
-                        #else:
-                        #    ppVector += learningRate * (2 * numpy.sign(eij) * region2Vector[region] - regParam * ppVector)
-                        #    region2Vector[region] += learningRate * (2 * numpy.sign(eij) * ppVector - regParam * region2Vector[region])                            
         
             # let's calculate the squared reconstruction error
             # maybe look only at the training data?
@@ -170,7 +173,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
 
         # now let's do the MF for each property separately:
         jobs = []
-        for property in trainMatrix.keys(): # ["/location/statistical_region/renewable_freshwater_per_capita", "/location/statistical_region/population"]: #   
+        for property in trainMatrix.keys(): # ["/location/statistical_region/renewable_freshwater_per_capita", "/location/statistical_region/population"]: #    
             #if property in ["/location/statistical_region/fertility_rate"]: # 
             job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold,))
             jobs.append(job)

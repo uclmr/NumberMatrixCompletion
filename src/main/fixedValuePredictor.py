@@ -13,7 +13,7 @@ class FixedValuePredictor(abstractPredictor.AbstractPredictor):
         return self.property2fixedValue[property]
          
     
-    def train(self, trainMatrix, textMatrix, params): 
+    def train(self, trainMatrix, textMatrix, params=None): 
         for property, trainRegion2value in trainMatrix.items():
             print property, trainRegion2value
             # try three options

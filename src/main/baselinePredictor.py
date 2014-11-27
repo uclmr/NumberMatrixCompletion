@@ -1,15 +1,17 @@
-import abstractPredictor
+import fixedValuePredictor
 import numpy
 import heapq
 
-class BaselinePredictor(abstractPredictor.AbstractPredictor):
+class BaselinePredictor(fixedValuePredictor.FixedValuePredictor):
     
     def __init__(self):
-        # this keeps the average for each relation
-        self.property2median = {}
         # this keeps the patterns for each relation
         # each pattern has a dict of regions and values associated with it 
         self.property2patterns = {}
+        # this initializes the fixed value
+        fixedValuePredictor.FixedValuePredictor.__init__(self)
+        #super(BaselinePredictor,self).__init_()
+        
 
     def predict(self, property, region):
         # collect all the values for this region found in related patterns
@@ -24,9 +26,11 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
         if len(values) > 0:
             return numpy.mean(values)
         else:
-            return self.property2median[property]
+            return fixedValuePredictor.FixedValuePredictor.predict(self, property, region) 
             
     def train(self, trainMatrix, textMatrix, params=[False]):
+        fixedValuePredictor.FixedValuePredictor.train(self, trainMatrix, textMatrix)
+        
         # whether we are scaling or not
         scaling = params[0]
         # if we are scaling, what is the scaling parameter?
@@ -41,7 +45,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
         for property, trainRegion2value in trainMatrix.items():
             print property, trainRegion2value
             # first get the average
-            self.property2median[property] = numpy.median(trainRegion2value.values())
+            #self.property2median[property] = numpy.median(trainRegion2value.values())
             self.property2patterns[property] = {}
             
             # this is used to store the msaes for each pattern
@@ -52,9 +56,9 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
                 keysInCommon = list(set(region2value.keys()) & set(trainRegion2value.keys()))
                 if len(keysInCommon) > 1:
                     if scaling:
-                        mape = abstractPredictor.AbstractPredictor.supportScaledMAPE(region2value, trainRegion2value, scalingParam)                    
+                        mape = self.supportScaledMAPE(region2value, trainRegion2value, scalingParam)                    
                     else:
-                        mape = abstractPredictor.AbstractPredictor.MAPE(region2value, trainRegion2value)
+                        mape = self.MAPE(region2value, trainRegion2value)
                     heapq.heappush(patternMAPEs, (mape, pattern))
             
             # predict
@@ -72,7 +76,7 @@ class BaselinePredictor(abstractPredictor.AbstractPredictor):
                 self.property2patterns[property][pattern] = textMatrix[pattern]
                 print "text pattern: " + pattern.encode('utf-8')
                 print "MAPE:", mape                
-                print "MASE", abstractPredictor.AbstractPredictor.MASE(textMatrix[pattern], trainRegion2value)
+                print "MASE", self.MASE(textMatrix[pattern], trainRegion2value)
                 print textMatrix[pattern]
                 
                 # predict

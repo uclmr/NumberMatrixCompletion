@@ -1,4 +1,4 @@
-import abstractPredictor
+import fixedValuePredictor
 import numpy
 import multiprocessing
 import copy
@@ -6,14 +6,14 @@ import operator
 from __builtin__ import False
     
 
-class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
+class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
     
     def __init__(self):
         # each region has a different vector for each property
         self.property2region2Vector = {}
         self.property2vector = {}
         # keep this as a backup:
-        self.property2median = {}
+        fixedValuePredictor.FixedValuePredictor.__init__(self)
         
     def predict(self, property, region):
         # it can be the case that we haven't got anything for a coutnry
@@ -21,13 +21,12 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
             return numpy.dot(self.property2vector[property], self.property2region2Vector[property][region])
         else:
             print "no vector for property ", property.encode('utf-8'), " or no vector for region ", region.encode('utf-8'), " for this property"
-            return self.property2median[property]
+            return fixedValuePredictor.FixedValuePredictor.predict(self, property, region)
         
     def trainRelation(self, d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold):
         #property = propertyQueue.get()
         trainRegion2value = trainMatrix[property]
         print property, " training starting now"
-        median = numpy.median(trainRegion2value.values())
         
         # first let's filter
         filteredPatterns = []
@@ -37,14 +36,13 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
             if len(keysInCommon) > 1:
                 #print pattern
                 #print region2value
-                mape = abstractPredictor.AbstractPredictor.MAPE(region2value, trainRegion2value)
+                mape = self.MAPE(region2value, trainRegion2value)
                 if mape < filterThreshold:
                     filteredPatterns.append(pattern)
                 
         print property, ", patterns left after filtering ", len(filteredPatterns)
         if len(filteredPatterns) == 0:
             print property, ", no patterns left after filtering, SKIP"
-            d[property] = (median, None, None)
             return
         print filteredPatterns
         
@@ -122,8 +120,8 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                     except FloatingPointError:
                         print property, ", iteration ", iter, ", error for region ", region.encode('utf-8'), " too big, IGNORED"
                     preds[region] = pred
-            mase = abstractPredictor.AbstractPredictor.MASE(preds, trainRegion2value)
-            mape = abstractPredictor.AbstractPredictor.MAPE(preds, trainRegion2value)
+            mase = self.MASE(preds, trainRegion2value)
+            mape = self.MAPE(preds, trainRegion2value)
             print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
             print property, ", iteration ", iter, " reconstruction mean absolute error on trainMatrix=", numpy.mean(absoluteErrors)
             print property, ", iteration ", iter, " MASE on trainMatrix=", mase
@@ -148,12 +146,12 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
                                                                         - 2* numpy.dot(pattern2vector[sortedPaterns[idx][0]], pattern2vector[sortedPaterns[idx-1][0]]))
                     print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1], ":", euclideanDistanceFromPreviousProperty
                 else:
-                    print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1], ": NaN"
+                    print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1], ": N/A"
             
             if mape < 0.000001:
                 break
         
-        d[property] = (median, propertyVector, region2Vector)
+        d[property] = (propertyVector, region2Vector)
         #self.property2vector[property] = propertyVector
         #self.property2region2Vector[property] = region2Vector 
         
@@ -161,18 +159,10 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
     
     # parameters are: learning rate, reg_parameter, iterations, filtering threshold
     def train(self, trainMatrix, textMatrix, params=[0.1, 1, 5000, 0.1]):
+        # get the back up fixed values
+        fixedValuePredictor.FixedValuePredictor.train(self, trainMatrix, textMatrix)
     
         learningRate, regParam, iterations, filterThreshold = params                    
-
-        #propertyQueue = multiprocessing.Queue(maxsize=0)
-        #num_threads = 3
-
-        #for i in range(num_threads):
-        #    worker = multiprocessing.Process(target=self.trainRelation, args=(propertyQueue, trainMatrix, textMatrix, learningRate, regParam, iterations,))
-            #worker.daemon = True
-        #    worker.start()
-
-        # we need q queue for the the results to be put
         
         mgr = multiprocessing.Manager()
         d = mgr.dict()
@@ -180,8 +170,8 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
 
         # now let's do the MF for each property separately:
         jobs = []
-        for property in trainMatrix.keys(): #, "/location/statistical_region/renewable_freshwater_per_capita"]: #  
-            #if property in ["/location/statistical_region/fertility_rate"]: # , "/location/statistical_region/population"
+        for property in trainMatrix.keys(): # ["/location/statistical_region/renewable_freshwater_per_capita", "/location/statistical_region/population"]: #   
+            #if property in ["/location/statistical_region/fertility_rate"]: # 
             job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold,))
             jobs.append(job)
             #else:
@@ -195,14 +185,9 @@ class OnePropertyMatrixFactorPredictor(abstractPredictor.AbstractPredictor):
         for j in jobs:
             j.join()
             
-        for property, (median, propertyVector, region2Vector) in d.items():
-            self.property2median[property] = copy.copy(median)
-            if region2Vector != None:    
-                self.property2region2Vector[property] = copy.copy(region2Vector)
-                self.property2vector[property] = copy.copy(propertyVector)
-            
-        
-        print self.property2median
+        for property, (propertyVector, region2Vector) in d.items():    
+            self.property2region2Vector[property] = copy.copy(region2Vector)
+            self.property2vector[property] = copy.copy(propertyVector)
         
         print "Done training"
         
@@ -217,9 +202,9 @@ if __name__ == "__main__":
     
     predictor = OnePropertyMatrixFactorPredictor()
     
-    trainMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[1])
-    textMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[2])
-    testMatrix = abstractPredictor.AbstractPredictor.loadMatrix(sys.argv[3])
+    trainMatrix = predictor.loadMatrix(sys.argv[1])
+    textMatrix = predictor.loadMatrix(sys.argv[2])
+    testMatrix = predictor.loadMatrix(sys.argv[3])
     
     learningRate = float(sys.argv[4])
     l2penalty = float(sys.argv[5])

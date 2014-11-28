@@ -100,10 +100,11 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
 
                         eij = value - numpy.dot(ppVector,region2Vector[region])
                         # scale it
-                        eij /= medianAbs
-                        if numpy.abs(eij) > 1:
+                        #eij /= medianAbs
+                        #if numpy.abs(eij) > 100:
+                            #print property, ", pattern ", pp.encode('utf-8'), ", region ", region.encode('utf-8'), ", error too large, swhitching to L1"
                             # this is essentially L1 loss                        
-                            eij = numpy.sign(eij)
+                        eij = numpy.sign(eij)
                             #if numpy.abs(eij) < 1:
                         ppVector += learningRate * (2 * eij * region2Vector[region] - regParam * ppVector)
                         region2Vector[region] += learningRate * (2 * eij * ppVector - regParam * region2Vector[region])
@@ -129,6 +130,21 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             print property, ", iteration ", iter, " reconstruction mean absolute error on trainMatrix=", numpy.mean(absoluteErrors)
             print property, ", iteration ", iter, " MASE on trainMatrix=", mase
             print property, ", iteration ", iter, " MAPE on trainMatrix=", mape
+
+            patternSquaredErrors = []
+            patternAbsoluteErrors = []            
+            for pattern in filteredPatterns:
+                region2value = textMatrix[pattern]
+                for region, value in region2value.items():
+                    pred = numpy.dot(pattern2vector[pattern],region2Vector[region])
+                    try:
+                        error = pred - value
+                        patternAbsoluteErrors.append(numpy.absolute(error))
+                        patternSquaredErrors.append(numpy.square(error))
+                    except FloatingPointError:
+                        print property, ", iteration ", iter, ", error for region ", region.encode('utf-8'), " too big, IGNORED"
+            print property, ", iteration ", iter, " reconstruction mean squared error on textMatrix=", numpy.mean(patternSquaredErrors)
+            print property, ", iteration ", iter, " reconstruction mean absolute error on textMatrix=", numpy.mean(patternAbsoluteErrors)
             
             euclidDistanceFromPropertyVector = {}
             pVectorSquare = numpy.dot(propertyVector, propertyVector)
@@ -141,15 +157,9 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             
             sortedPaterns= sorted(euclidDistanceFromPropertyVector.items(), key=operator.itemgetter(1))
             
-            print "top-10 patterns closest to the property in euclidean distance : distance from property : distance from pattern above"
+            print "top-10 patterns closest to the property in euclidean distance : distance from property "
             for idx in xrange(min(10, len(sortedPaterns))):
-                if idx > 0:
-                    euclideanDistanceFromPreviousProperty = numpy.sqrt(numpy.dot(pattern2vector[sortedPaterns[idx][0]], pattern2vector[sortedPaterns[idx][0]]) \
-                                                                        + numpy.dot(pattern2vector[sortedPaterns[idx-1][0]], pattern2vector[sortedPaterns[idx-1][0]]) \
-                                                                        - 2* numpy.dot(pattern2vector[sortedPaterns[idx][0]], pattern2vector[sortedPaterns[idx-1][0]]))
-                    print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1], ":", euclideanDistanceFromPreviousProperty
-                else:
-                    print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1], ": N/A"
+                print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1]
             
             if mape < 0.000001:
                 break

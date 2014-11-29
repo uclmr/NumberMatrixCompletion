@@ -57,8 +57,6 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         # first the property
         propertyVector = numpy.random.rand(dims)
         
-        # get the median for error scaling
-        medianAbs = numpy.abs(numpy.median(trainRegion2value.values()))
 
         # then the patterns and the regions
         region2Vector = {}            
@@ -75,6 +73,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         
         print property, ", values present ", valuesPresent, " density ", float(valuesPresent)/(len(filteredPatterns)*len(region2Vector))
         
+        propertyLearningRate = (float(valuesPresent)/len(trainRegion2value))* learningRate
         # let's go!
         for iter in xrange(iterations):
             # for each property or pattern
@@ -84,8 +83,10 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 # we might be getting the values from either the train matrix or the 
                 if pp == property:
                     region2value = trainRegion2value
+                    lr = propertyLearningRate
                 else:
                     region2value = textMatrix[pp]
+                    lr = learningRate
                 # let's try to reconstruct each known value    
                 regVals = region2value.items()
                 numpy.random.shuffle(regVals)
@@ -104,14 +105,19 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         #if numpy.abs(eij) > 100:
                             #print property, ", pattern ", pp.encode('utf-8'), ", region ", region.encode('utf-8'), ", error too large, swhitching to L1"
                             # this is essentially L1 loss                        
-                        eij = numpy.sign(eij)
+                        #eij = numpy.sign(eij)
+                        # kind of APE 
+                        #if numpy.abs(value) > 1: 
+                        #    eij /= numpy.square(value)
                             #if numpy.abs(eij) < 1:
-                        ppVector += learningRate * (2 * eij * region2Vector[region] - regParam * ppVector)
-                        region2Vector[region] += learningRate * (2 * eij * ppVector - regParam * region2Vector[region])
+                        if eij > 1:
+                            eij = numpy.sign(eij)
+                        ppVector += lr * (2 * eij * region2Vector[region] - regParam * ppVector)
+                        region2Vector[region] += lr * (2 * eij * ppVector - regParam * region2Vector[region])
         
             # let's calculate the squared reconstruction error
             # maybe look only at the training data?
-            squaredErrors = []
+            #squaredErrors = []
             absoluteErrors = []
             preds = {}
             for region, value in trainRegion2value.items():
@@ -120,31 +126,34 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                     try:
                         error = pred - value
                         absoluteErrors.append(numpy.absolute(error))
-                        squaredErrors.append(numpy.square(error))
+                        #squaredErrors.append(numpy.square(error))
                     except FloatingPointError:
                         print property, ", iteration ", iter, ", error for region ", region.encode('utf-8'), " too big, IGNORED"
                     preds[region] = pred
-            mase = self.MASE(preds, trainRegion2value)
+            #mase = self.MASE(preds, trainRegion2value)
             mape = self.MAPE(preds, trainRegion2value)
-            print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
+            #print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
             print property, ", iteration ", iter, " reconstruction mean absolute error on trainMatrix=", numpy.mean(absoluteErrors)
-            print property, ", iteration ", iter, " MASE on trainMatrix=", mase
+            #print property, ", iteration ", iter, " MASE on trainMatrix=", mase
             print property, ", iteration ", iter, " MAPE on trainMatrix=", mape
 
-            patternSquaredErrors = []
-            patternAbsoluteErrors = []            
+            #patternSquaredErrors = []
+            patternAbsoluteErrors = []
+            trueVals = {}
+            predVals = {}            
             for pattern in filteredPatterns:
                 region2value = textMatrix[pattern]
                 for region, value in region2value.items():
                     pred = numpy.dot(pattern2vector[pattern],region2Vector[region])
-                    try:
-                        error = pred - value
-                        patternAbsoluteErrors.append(numpy.absolute(error))
-                        patternSquaredErrors.append(numpy.square(error))
-                    except FloatingPointError:
-                        print property, ", iteration ", iter, ", error for region ", region.encode('utf-8'), " too big, IGNORED"
-            print property, ", iteration ", iter, " reconstruction mean squared error on textMatrix=", numpy.mean(patternSquaredErrors)
-            print property, ", iteration ", iter, " reconstruction mean absolute error on textMatrix=", numpy.mean(patternAbsoluteErrors)
+                    error = pred - value
+                    patternAbsoluteErrors.append(numpy.absolute(error))
+                    trueVals[region+pattern] = value
+                    predVals[region+pattern] = pred
+            #print property, ", iteration ", iter, " reconstruction mean squared error on textMatrix=", numpy.mean(patternSquaredErrors)
+            textMean = numpy.mean(patternAbsoluteErrors)
+            print property, ", iteration ", iter, " reconstruction mean absolute error on textMatrix=", textMean 
+            mape = self.MAPE(predVals, trueVals)
+            print property, ", iteration ", iter, " MAPE on textMatrix=", mape 
             
             euclidDistanceFromPropertyVector = {}
             pVectorSquare = numpy.dot(propertyVector, propertyVector)

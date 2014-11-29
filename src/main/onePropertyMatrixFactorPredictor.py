@@ -73,20 +73,18 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         
         print property, ", values present ", valuesPresent, " density ", float(valuesPresent)/(len(filteredPatterns)*len(region2Vector))
         
-        propertyLearningRate = (float(valuesPresent)/len(trainRegion2value))* learningRate
+        #propertyLearningRate = (float(valuesPresent)/len(trainRegion2value))* learningRate
         # let's go!
         for iter in xrange(iterations):
-            # for each property or pattern
-            allpps = [property] + filteredPatterns
+            # for each property or pattern (the property is featured as many times as the patterns)
+            allpps = len(filteredPatterns)*[property] + filteredPatterns
             numpy.random.shuffle(allpps)            
             for pp in allpps:
                 # we might be getting the values from either the train matrix or the 
                 if pp == property:
                     region2value = trainRegion2value
-                    lr = propertyLearningRate
                 else:
                     region2value = textMatrix[pp]
-                    lr = learningRate
                 # let's try to reconstruct each known value    
                 regVals = region2value.items()
                 numpy.random.shuffle(regVals)
@@ -102,18 +100,13 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         eij = value - numpy.dot(ppVector,region2Vector[region])
                         # scale it
                         #eij /= medianAbs
-                        #if numpy.abs(eij) > 100:
-                            #print property, ", pattern ", pp.encode('utf-8'), ", region ", region.encode('utf-8'), ", error too large, swhitching to L1"
-                            # this is essentially L1 loss                        
-                        #eij = numpy.sign(eij)
                         # kind of APE 
                         #if numpy.abs(value) > 1: 
                         #    eij /= numpy.square(value)
-                            #if numpy.abs(eij) < 1:
-                        if eij > 1:
+                        if numpy.abs(eij) > 1:
                             eij = numpy.sign(eij)
-                        ppVector += lr * (2 * eij * region2Vector[region] - regParam * ppVector)
-                        region2Vector[region] += lr * (2 * eij * ppVector - regParam * region2Vector[region])
+                        ppVector += learningRate * (2 * eij * region2Vector[region] - regParam * ppVector)
+                        region2Vector[region] += learningRate * (2 * eij * ppVector - regParam * region2Vector[region])
         
             # let's calculate the squared reconstruction error
             # maybe look only at the training data?

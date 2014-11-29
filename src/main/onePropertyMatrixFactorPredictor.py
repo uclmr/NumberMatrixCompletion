@@ -145,8 +145,8 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             #print property, ", iteration ", iter, " reconstruction mean squared error on textMatrix=", numpy.mean(patternSquaredErrors)
             textMean = numpy.mean(patternAbsoluteErrors)
             print property, ", iteration ", iter, " reconstruction mean absolute error on textMatrix=", textMean 
-            mape = self.MAPE(predVals, trueVals)
-            print property, ", iteration ", iter, " MAPE on textMatrix=", mape 
+            patternMape = self.MAPE(predVals, trueVals)
+            print property, ", iteration ", iter, " MAPE on textMatrix=", patternMape 
             
             euclidDistanceFromPropertyVector = {}
             pVectorSquare = numpy.dot(propertyVector, propertyVector)

@@ -16,7 +16,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         fixedValuePredictor.FixedValuePredictor.__init__(self)
         
     def predict(self, property, region):
-        # it can be the case that we haven't got anything for a coutnry
+        # it can be the case that we haven't got anything for a country
         if property in self.property2vector and region in self.property2region2Vector[property]:
             return numpy.dot(self.property2vector[property], self.property2region2Vector[property][region])
         else:
@@ -30,6 +30,8 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         
         # first let's filter
         filteredPatterns = []
+        filteredPatternMAPES = []
+        lowestNonZeroMAPE = float("inf")
         for pattern, region2value in textMatrix.items():
             # make sure that it has at least two value in common with training data, otherwise we might get spurious stuff
             keysInCommon = list(set(region2value.keys()) & set(trainRegion2value.keys()))
@@ -39,12 +41,34 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 mape = self.MAPE(region2value, trainRegion2value)
                 if mape < filterThreshold:
                     filteredPatterns.append(pattern)
+                    filteredPatternMAPES.append(mape)
+                    if mape < lowestNonZeroMAPE:
+                        lowestNonZeroMAPE = mape
+        if lowestNonZeroMAPE < 0.1:
+            lowestNonZeroMAPE = 0.1
                 
         print property, ", patterns left after filtering ", len(filteredPatterns)
         if len(filteredPatterns) == 0:
             print property, ", no patterns left after filtering, SKIP"
             return
-        print filteredPatterns
+        
+        complexAdjustment = True
+        if complexAdjustment:
+            adjustedPatternMAPEs = numpy.array(filteredPatternMAPES) + lowestNonZeroMAPE
+            print adjustedPatternMAPEs
+            inversePatternMAPES = 1/adjustedPatternMAPEs
+            print inversePatternMAPES
+            minInversePatternMAPE = numpy.min(inversePatternMAPES)
+            print minInversePatternMAPE
+            patternProportions = inversePatternMAPES/minInversePatternMAPE
+                    
+            filteredPatternWeights = (numpy.rint(patternProportions)).astype(int)
+        else:
+            filteredPatternWeights = [1]*len(filteredPatterns)
+        
+        for idx, pattern in enumerate(filteredPatterns): 
+            print property, ":", pattern.encode('utf-8'), ":", filteredPatternWeights[idx]
+
         
         # ignore the setting, set it according to the text patterns   
         dims = max(2, int(numpy.ceil(numpy.sqrt(len(filteredPatterns)))))
@@ -75,9 +99,15 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         
         #propertyLearningRate = (float(valuesPresent)/len(trainRegion2value))* learningRate
         # let's go!
+        
+        allpps = []
+        # Add each pattern according to its weight, related to how good that pattern is for the propoerty
+        for idx, pattern in enumerate(filteredPatterns):
+            allpps.extend([pattern]*filteredPatternWeights[idx])
+        # make sure we see the property as much as the patterns
+        allpps.extend(len(allpps)*[property])
+        
         for iter in xrange(iterations):
-            # for each property or pattern (the property is featured as many times as the patterns)
-            allpps = len(filteredPatterns)*[property] + filteredPatterns
             numpy.random.shuffle(allpps)            
             for pp in allpps:
                 # we might be getting the values from either the train matrix or the 
@@ -185,7 +215,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
 
         # now let's do the MF for each property separately:
         jobs = []
-        for property in trainMatrix.keys(): # ["/location/statistical_region/renewable_freshwater_per_capita", "/location/statistical_region/population"]: #    
+        for property in trainMatrix.keys(): # ["/location/statistical_region/renewable_freshwater_per_capita", "/location/statistical_region/population"]: # ["/location/statistical_region/size_of_armed_forces"]:#    
             #if property in ["/location/statistical_region/fertility_rate"]: # 
             job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold,))
             jobs.append(job)

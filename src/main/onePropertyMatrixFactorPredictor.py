@@ -23,7 +23,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             print "no vector for property ", property.encode('utf-8'), " or no vector for region ", region.encode('utf-8'), " for this property"
             return fixedValuePredictor.FixedValuePredictor.predict(self, property, region)
         
-    def trainRelation(self, d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold):
+    def trainRelation(self, d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold, learningRateBalance):
         #property = propertyQueue.get()
         trainRegion2value = trainMatrix[property]
         print property, " training starting now"
@@ -107,6 +107,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         # make sure we see the property as much as the patterns
         allpps.extend(len(allpps)*[property])
         
+        absPropertyMedian = numpy.abs(numpy.median(trainRegion2value.values()))
         for iter in xrange(iterations):
             numpy.random.shuffle(allpps)            
             for pp in allpps:
@@ -133,10 +134,19 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         # kind of APE 
                         #if numpy.abs(value) > 1: 
                         #    eij /= numpy.square(value)
+                        #if region in trainRegion2value and not (trainRegion2value[region] == 0):
+                        #    eij /= numpy.abs(trainRegion2value[region])
+                        #else:
+                        #    eij /= absPropertyMedian
+                        
                         if numpy.abs(eij) > 1:
                             eij = numpy.sign(eij)
-                        ppVector += learningRate * (2 * eij * region2Vector[region] - regParam * ppVector)
-                        region2Vector[region] += learningRate * (2 * eij * ppVector - regParam * region2Vector[region])
+                        if pp == property:
+                            ppVector += learningRate * learningRateBalance * (2 * eij * region2Vector[region] - regParam * ppVector)
+                            region2Vector[region] += learningRate * learningRateBalance * (2 * eij * ppVector - regParam * region2Vector[region])                            
+                        else:                            
+                            ppVector += learningRate * (2 * eij * region2Vector[region] - regParam * ppVector)
+                            region2Vector[region] += learningRate * (2 * eij * ppVector - regParam * region2Vector[region])
         
             # let's calculate the squared reconstruction error
             # maybe look only at the training data?
@@ -203,11 +213,11 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                     
     
     # parameters are: learning rate, reg_parameter, iterations, filtering threshold
-    def train(self, trainMatrix, textMatrix, params=[0.1, 1, 5000, 0.1]):
+    def train(self, trainMatrix, textMatrix, params=[0.1, 1, 5000, 0.1, 1]):
         # get the back up fixed values
         fixedValuePredictor.FixedValuePredictor.train(self, trainMatrix, textMatrix)
     
-        learningRate, regParam, iterations, filterThreshold = params                    
+        learningRate, regParam, iterations, filterThreshold, learningRateBalance = params                    
         
         mgr = multiprocessing.Manager()
         d = mgr.dict()
@@ -217,7 +227,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         jobs = []
         for property in trainMatrix.keys(): # ["/location/statistical_region/renewable_freshwater_per_capita", "/location/statistical_region/population"]: # ["/location/statistical_region/size_of_armed_forces"]:#    
             #if property in ["/location/statistical_region/fertility_rate"]: # 
-            job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold,))
+            job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold, learningRateBalance,))
             jobs.append(job)
             #else:
             #    self.property2median[property] = numpy.median(trainMatrix[property].values())
@@ -255,6 +265,7 @@ if __name__ == "__main__":
     l2penalty = float(sys.argv[5])
     iterations = int(sys.argv[6])
     filterThreshold = float(sys.argv[7])
+    learningRateBalance = float(sys.argv[8])
     
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[learningRate, l2penalty, iterations, filterThreshold]])
+    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[learningRate, l2penalty, iterations, filterThreshold, learningRateBalance]])
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)

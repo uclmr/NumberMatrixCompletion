@@ -38,14 +38,14 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             if len(keysInCommon) > 1:
                 #print pattern
                 #print region2value
-                mape = self.MAPE(region2value, trainRegion2value)
+                mape = self.supportScaledMAPE(region2value, trainRegion2value, 1)
                 if mape < filterThreshold:
                     filteredPatterns.append(pattern)
                     filteredPatternMAPES.append(mape)
                     if mape < lowestNonZeroMAPE:
                         lowestNonZeroMAPE = mape
-        if lowestNonZeroMAPE < 0.1:
-            lowestNonZeroMAPE = 0.1
+        if lowestNonZeroMAPE < 0.001:
+            lowestNonZeroMAPE = 0.001
                 
         print property, ", patterns left after filtering ", len(filteredPatterns)
         if len(filteredPatterns) == 0:

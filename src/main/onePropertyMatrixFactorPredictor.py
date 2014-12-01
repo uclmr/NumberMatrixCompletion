@@ -3,7 +3,7 @@ import numpy
 import multiprocessing
 import copy
 import operator
-from __builtin__ import False
+from collections import Counter
     
 
 class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
@@ -44,31 +44,11 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                     filteredPatternMAPES.append(mape)
                     if mape < lowestNonZeroMAPE:
                         lowestNonZeroMAPE = mape
-        if lowestNonZeroMAPE < 0.001:
-            lowestNonZeroMAPE = 0.001
                 
         print property, ", patterns left after filtering ", len(filteredPatterns)
         if len(filteredPatterns) == 0:
             print property, ", no patterns left after filtering, SKIP"
             return
-        
-        complexAdjustment = True
-        if complexAdjustment:
-            adjustedPatternMAPEs = numpy.array(filteredPatternMAPES) + lowestNonZeroMAPE
-            print adjustedPatternMAPEs
-            inversePatternMAPES = 1/adjustedPatternMAPEs
-            print inversePatternMAPES
-            minInversePatternMAPE = numpy.min(inversePatternMAPES)
-            print minInversePatternMAPE
-            patternProportions = inversePatternMAPES/minInversePatternMAPE
-                    
-            filteredPatternWeights = (numpy.rint(patternProportions)).astype(int)
-        else:
-            filteredPatternWeights = [1]*len(filteredPatterns)
-        
-        for idx, pattern in enumerate(filteredPatterns): 
-            print property, ":", pattern.encode('utf-8'), ":", filteredPatternWeights[idx]
-
         
         # ignore the setting, set it according to the text patterns   
         dims = max(2, int(numpy.ceil(numpy.sqrt(len(filteredPatterns)))))
@@ -85,13 +65,18 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         # then the patterns and the regions
         region2Vector = {}            
         pattern2vector = {}
+        # also count the times they appear in the patterns
+        trainingRegion2counts = Counter()
         valuesPresent = 0
         for pattern in filteredPatterns:
             pattern2vector[pattern] = numpy.random.rand(dims)
             valuesPresent += len(textMatrix[pattern]) 
             for region in textMatrix[pattern].keys():
                 if region not in region2Vector:
-                    region2Vector[region] =  numpy.random.rand(dims)                    
+                    region2Vector[region] =  numpy.random.rand(dims)
+                if region in trainRegion2value:
+                    trainingRegion2counts[region] += 1 
+                    
         
         print property, ", regions after filtering: ", len(region2Vector)
         
@@ -100,12 +85,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         #propertyLearningRate = (float(valuesPresent)/len(trainRegion2value))* learningRate
         # let's go!
         
-        allpps = []
-        # Add each pattern according to its weight, related to how good that pattern is for the propoerty
-        for idx, pattern in enumerate(filteredPatterns):
-            allpps.extend([pattern]*filteredPatternWeights[idx])
-        # make sure we see the property as much as the patterns
-        allpps.extend(len(allpps)*[property])
+        allpps = [property] + filteredPatterns
         
         absPropertyMedian = numpy.abs(numpy.median(trainRegion2value.values()))
         for iter in xrange(iterations):
@@ -125,8 +105,11 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         # reconstruction error
                         if pp == property:
                             ppVector = propertyVector
+                            # +1 is for the cases where we haven't seen this training region with any pattern
+                            lr = (learningRateBalance*trainingRegion2counts[region] + 1) * learningRate
                         else:
                             ppVector = pattern2vector[pp]
+                            lr = learningRate
 
                         eij = value - numpy.dot(ppVector,region2Vector[region])
                         # scale it
@@ -141,12 +124,9 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         
                         if numpy.abs(eij) > 1:
                             eij = numpy.sign(eij)
-                        if pp == property:
-                            ppVector += learningRate * learningRateBalance * (2 * eij * region2Vector[region] - regParam * ppVector)
-                            region2Vector[region] += learningRate * learningRateBalance * (2 * eij * ppVector - regParam * region2Vector[region])                            
-                        else:                            
-                            ppVector += learningRate * (2 * eij * region2Vector[region] - regParam * ppVector)
-                            region2Vector[region] += learningRate * (2 * eij * ppVector - regParam * region2Vector[region])
+                            
+                        ppVector += lr * (2 * eij * region2Vector[region] - regParam * ppVector)
+                        region2Vector[region] += lr * (2 * eij * ppVector - regParam * region2Vector[region])
         
             # let's calculate the squared reconstruction error
             # maybe look only at the training data?

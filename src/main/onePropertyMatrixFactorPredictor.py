@@ -241,11 +241,14 @@ if __name__ == "__main__":
     textMatrix = predictor.loadMatrix(sys.argv[2])
     testMatrix = predictor.loadMatrix(sys.argv[3])
     
+    #TODO: These should now be sets of values for these parameters that need to be evaluated
+    #TODO: Actually, they should be determined on a per relation basis eventually, let's start with one set though
     learningRate = float(sys.argv[4])
     l2penalty = float(sys.argv[5])
     iterations = int(sys.argv[6])
     filterThreshold = float(sys.argv[7])
     learningRateBalance = float(sys.argv[8])
     
-    bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[learningRate, l2penalty, iterations, filterThreshold, learningRateBalance]])
-    #predictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)
+    # TODO: this function should now return the best parameters per relation 
+    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[learningRate, l2penalty, iterations, filterThreshold, learningRateBalance]])
+    predictor.runEval(trainMatrix, textMatrix, testMatrix, property2bestParams)

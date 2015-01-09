@@ -63,7 +63,7 @@ class AbstractPredictor(object):
         
         avgScore = predictor.eval(predMatrix, testMatrix)
         return avgScore
-    
+     
     # TODO
     @classmethod
     def runRelEval(cls, trainRegion2Value, textMatrix, testRegion2value, params):

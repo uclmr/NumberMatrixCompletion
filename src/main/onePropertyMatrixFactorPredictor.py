@@ -23,11 +23,12 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             print "no vector for property ", property.encode('utf-8'), " or no vector for region ", region.encode('utf-8'), " for this property"
             return fixedValuePredictor.FixedValuePredictor.predict(self, property, region)
         
-    def trainRelation(self, d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold, learningRateBalance):
-        #property = propertyQueue.get()
-        trainRegion2value = trainMatrix[property]
+    def trainRelation(self, property, trainRegion2value, textMatrix, learningRate, regParam, iterations, filterThreshold, learningRateBalance):
         print property, " training starting now"
         
+        # get the back up fixed values
+        fixedValuePredictor.FixedValuePredictor.trainRelation(self, property, trainRegion2value, textMatrix)
+                
         # first let's filter
         filteredPatterns = []
         filteredPatternMAPES = []
@@ -186,9 +187,9 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             if mape < 0.000001:
                 break
         
-        d[property] = (propertyVector, region2Vector)
-        #self.property2vector[property] = propertyVector
-        #self.property2region2Vector[property] = region2Vector 
+        #d[property] = (propertyVector, region2Vector)
+        self.property2vector[property] = propertyVector
+        self.property2region2Vector[property] = region2Vector 
         
                     
     
@@ -241,14 +242,17 @@ if __name__ == "__main__":
     textMatrix = predictor.loadMatrix(sys.argv[2])
     testMatrix = predictor.loadMatrix(sys.argv[3])
     
-    #TODO: These should now be sets of values for these parameters that need to be evaluated
-    #TODO: Actually, they should be determined on a per relation basis eventually, let's start with one set though
-    learningRate = float(sys.argv[4])
-    l2penalty = float(sys.argv[5])
-    iterations = int(sys.argv[6])
-    filterThreshold = float(sys.argv[7])
-    learningRateBalance = float(sys.argv[8])
+    learningRates = [0.0001, 0.001, 0.01]
+    l2penalties = [0.01, 0.1, 0.2, 0.3, 1]
+    iterations = [1000, 2000, 4000, 8000, 16000]
+    filterThresholds = [0.01, 0.012, 0.15]
+    learningRateBalances = [0.0, 1.0]
+    
+    # this loads all relations
+    #properties = json.loads(open("/cs/research/intelsys/home1/avlachos/FactChecking/featuresKept.json"))
+    # Othewise, specify which ones are needed:
+    properties = ["/location/statistical_region/population"]
     
     # TODO: this function should now return the best parameters per relation 
-    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, [[learningRate, l2penalty, iterations, filterThreshold, learningRateBalance]])
+    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, [learningRates, l2penalties, iterations, filterThresholds, learningRateBalances])
     predictor.runEval(trainMatrix, textMatrix, testMatrix, property2bestParams)

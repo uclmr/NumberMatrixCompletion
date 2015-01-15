@@ -64,28 +64,31 @@ class AbstractPredictor(object):
         avgScore = predictor.eval(predMatrix, testMatrix)
         return avgScore
      
-    # TODO
     @classmethod
-    def runRelEval(cls, trainRegion2Value, textMatrix, testRegion2value, params):
+    def runRelEval(cls, property, trainRegion2value, textMatrix, testRegion2value, params):
         predictor = cls()
         print "Training"
-        predictor.train(trainRegion2Value, textMatrix, params)
+        learningRate, regParam, iterations, filterThreshold, learningRateBalance = params
+        predictor.trainRelation(property, trainRegion2value, textMatrix, learningRate, regParam, iterations, filterThreshold, learningRateBalance)
         print "Testing"
         predMatrix = {}
+        predMatrix[property] = {}
         for region in testRegion2value:
             predMatrix[property][region] = predictor.predict(property, region)
         
+        testMatrix = {}
+        testMatrix[property] = testRegion2value
         avgScore = predictor.eval(predMatrix, testMatrix)
         return avgScore
     
     
-    # the params vector is the set of parameters to try out
-    #TODO: property2paramSets might need to be populated somehow with a default value?
+    # the paramSets
     @classmethod
-    def crossValidate(cls, trainMatrix, textMatrix, folds=4, property2paramSets={}):
+    def crossValidate(cls, trainMatrix, textMatrix, folds, properties, paramSets):
         # first construct the folds per relation
         property2folds = {}
         # we set the same random in order to get the same folds every time
+        # we do it on the whole dataset everytime independently of the choice of properties
         random.seed(13)
         # For each property
         for property, region2value in trainMatrix.items():
@@ -103,43 +106,57 @@ class AbstractPredictor(object):
         # here we keep the best params found for each relation 
         property2bestParams = {}
 
-        # for each of the properties
-        for property in trainMatrix:
+        # for each of the properties we decide 
+        for property in properties:
             print "property: " + property
             # this keeps the lowest MAPE achieved for this property across folds
             lowestAvgMAPE = float("inf")                
 
-            # for each parameter setting
-            for params in property2paramSets[property]:
-                print params 
 
-                #TODO: this is to handle the folds on different processors
-                #mgr = multiprocessing.Manager()
-                #d = mgr.dict()
+            #TODO: this is to handle the folds on different processors
+            #mgr = multiprocessing.Manager()
+            #d = mgr.dict()
+
+            # for each parameter setting
+            learningRates, l2penalties, iterations, filterThresholds, learningRateBalances = paramSets
+            # naive grid search
+            paramSets = []
+            for lr in learningRates:
+                for l2 in l2penalties:
+                    for iters in iterations:
+                        for ft in filterThresholds:
+                            for lrb in learningRateBalances:
+                                paramSets.append([lr,l2,iters,ft,lrb])
+                
+            
+            
+            for params in paramSets:
+                print "params: ", params 
                 
                 paramMAPEs = []
                 # for each fold    
+                
                 for foldNo in xrange(folds):
                     print "fold:", foldNo
                     # construct the training and test datasets
-                    foldTrainMatrix = {}
-                    foldTestMatrix = {}
+                    foldTrainRegion2value = {}
+                    foldTestRegion2value = {}
                     data = property2folds[property]
                     
                     foldTrainMatrix = {}
                     for idx in xrange(folds):
                         if (idx % folds) == foldNo:
                             # this the test data
-                            foldTestMatrix = data[idx]
+                            foldTestRegion2value = data[idx]
                         else:
                             # the rest adds to the training data
-                            foldTrainMatrix.update(data[idx])
+                            foldTrainRegion2value.update(data[idx])
                             
                     # now create a predictor and run the eval
                     predictor = cls()
                     # run the eval
                     # TODO: this needs to be run for each relation now
-                    mape = predictor.runRelEval(foldTrainMatrix, textMatrix, foldTestMatrix, params)
+                    mape = predictor.runRelEval(property, foldTrainRegion2value, textMatrix, foldTestRegion2value, params)
                     print "fold:", foldNo, " MAPE:", mape
                     # add the score for the fold
                     paramMAPEs.append(mape)
@@ -164,6 +181,8 @@ class AbstractPredictor(object):
                 
     @staticmethod
     def eval(predMatrix, testMatrix):
+        print predMatrix
+        print testMatrix
         property2MAPE = {}
         property2MASE = {}
         property2RMSE = {}

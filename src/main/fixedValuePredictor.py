@@ -11,8 +11,34 @@ class FixedValuePredictor(abstractPredictor.AbstractPredictor):
         
     def predict(self, property, region):
         return self.property2fixedValue[property]
+
+
+    # TODO: remove the textMatrix from the arg list
+    def trainRelation(self, property, trainRegion2value, textMatrix, params=None): 
+        # try three options
+        candidates = [0, numpy.median(trainRegion2value.values()), numpy.mean(trainRegion2value.values())]
+        bestScore = float("inf")
+        bestCandidate = None
+        for candidate in candidates:    
+            prediction = {}
+            for region in trainRegion2value:
+                prediction[region] = candidate 
+            mape = abstractPredictor.AbstractPredictor.MAPE(prediction, trainRegion2value)
+            
+            if mape < bestScore:
+                bestScore = mape
+                bestCandidate = candidate
+                
+        if bestCandidate == 0:
+            print property, " best value is 0 with score ", bestScore 
+        elif bestCandidate == numpy.median(trainRegion2value.values()):
+            print property, " best value is median with score ", bestScore
+        elif bestCandidate == numpy.mean(trainRegion2value.values()):
+            print property, " best value is mean with score ", bestScore                
+        self.property2fixedValue[property] = bestCandidate
+
          
-    
+    # TODO: refactor to reuse the above
     def train(self, trainMatrix, textMatrix, params=None): 
         for property, trainRegion2value in trainMatrix.items():
             print property, trainRegion2value

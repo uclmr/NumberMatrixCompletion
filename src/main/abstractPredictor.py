@@ -9,7 +9,6 @@ import random
 from sklearn.metrics import mean_squared_error
 import math
 
-# sadfggdf
 
 class AbstractPredictor(object):
     def __init__(self):
@@ -84,7 +83,7 @@ class AbstractPredictor(object):
     
     # the paramSets
     @classmethod
-    def crossValidate(cls, trainMatrix, textMatrix, folds, properties, paramSets):
+    def crossValidate(cls, trainMatrix, textMatrix, folds, properties, paramGroups):
         # first construct the folds per relation
         property2folds = {}
         # we set the same random in order to get the same folds every time
@@ -118,7 +117,7 @@ class AbstractPredictor(object):
             #d = mgr.dict()
 
             # for each parameter setting
-            learningRates, l2penalties, iterations, filterThresholds, learningRateBalances = paramSets
+            learningRates, l2penalties, iterations, filterThresholds, learningRateBalances = paramGroups
             # naive grid search
             paramSets = []
             for lr in learningRates:

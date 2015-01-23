@@ -64,26 +64,26 @@ class AbstractPredictor(object):
         return avgScore
      
     @classmethod
-    def runRelEval(cls, property, trainRegion2value, textMatrix, testRegion2value, params):
+    def runRelEval(cls, property, trainRegion2value, textMatrix, testRegion2value, of, params):
         predictor = cls()
         print "Training"
-        learningRate, regParam, iterations, filterThreshold, learningRateBalance = params
-        predictor.trainRelation(property, trainRegion2value, textMatrix, learningRate, regParam, iterations, filterThreshold, learningRateBalance)
+        learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale = params
+        predictor.trainRelation(property, trainRegion2value, textMatrix, of, learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale)
         print "Testing"
         predMatrix = {}
         predMatrix[property] = {}
         for region in testRegion2value:
-            predMatrix[property][region] = predictor.predict(property, region)
+            predMatrix[property][region] = predictor.predict(property, region, of)
         
         testMatrix = {}
         testMatrix[property] = testRegion2value
-        avgScore = predictor.eval(predMatrix, testMatrix)
+        avgScore = predictor.eval(predMatrix, testMatrix, of)
         return avgScore
     
     
     # the paramSets
     @classmethod
-    def crossValidate(cls, trainMatrix, textMatrix, folds, properties, paramGroups):
+    def crossValidate(cls, trainMatrix, textMatrix, folds, properties, outputFileName, paramGroups):
         # first construct the folds per relation
         property2folds = {}
         # we set the same random in order to get the same folds every time
@@ -117,7 +117,7 @@ class AbstractPredictor(object):
             #d = mgr.dict()
 
             # for each parameter setting
-            learningRates, l2penalties, iterations, filterThresholds, learningRateBalances = paramGroups
+            learningRates, l2penalties, iterations, filterThresholds, learningRateBalances, scale = paramGroups
             # naive grid search
             paramSets = []
             for lr in learningRates:
@@ -125,7 +125,8 @@ class AbstractPredictor(object):
                     for iters in iterations:
                         for ft in filterThresholds:
                             for lrb in learningRateBalances:
-                                paramSets.append([lr,l2,iters,ft,lrb])
+                                for sc in scale:
+                                    paramSets.append([lr,l2,iters,ft,lrb, sc])
                 
             
             
@@ -141,7 +142,7 @@ class AbstractPredictor(object):
                     foldTrainRegion2value = {}
                     foldTestRegion2value = {}
                     data = property2folds[property]
-                    
+
                     foldTrainMatrix = {}
                     for idx in xrange(folds):
                         if (idx % folds) == foldNo:
@@ -154,9 +155,13 @@ class AbstractPredictor(object):
                     # now create a predictor and run the eval
                     predictor = cls()
                     # run the eval
-                    # TODO: this needs to be run for each relation now
-                    mape = predictor.runRelEval(property, foldTrainRegion2value, textMatrix, foldTestRegion2value, params)
-                    print "fold:", foldNo, " MAPE:", mape
+                    # open the file for the relation, fold and params
+                    ofn = outputFileName + "_" + "_".join([property.split("/")[-1], "l" + str(params[0]), "p" + str(params[1]), "i" + str(params[2]), "f" + str(params[3]), "b" + str(params[4]), "s" + str(params[5]), str(foldNo)])
+                    of = open(ofn, "w")
+                    mape = predictor.runRelEval(property, foldTrainRegion2value, textMatrix, foldTestRegion2value, of, params)
+                    
+                    of.write("fold:" + str(foldNo) + " MAPE:" + str(mape) + "\n")
+                    of.close()
                     # add the score for the fold
                     paramMAPEs.append(mape)
                     
@@ -179,41 +184,41 @@ class AbstractPredictor(object):
             
                 
     @staticmethod
-    def eval(predMatrix, testMatrix):
-        print predMatrix
-        print testMatrix
+    def eval(predMatrix, testMatrix, of):
+        of.write(str(predMatrix) +"\n")
+        of.write(str(testMatrix) +"\n")
         property2MAPE = {}
         property2MASE = {}
         property2RMSE = {}
         for property, predRegion2value in predMatrix.items():
-            print property
+            of.write(property+"\n")
             #print "real: ", testMatrix[property]
             #print "predicted: ", predRegion2value
-            mape = AbstractPredictor.MAPE(predRegion2value, testMatrix[property], True)
-            print "MAPE: ", mape
+            mape = AbstractPredictor.MAPE(predRegion2value, testMatrix[property])
+            of.write("MAPE: " + str(mape) + "\n")
             property2MAPE[property] = mape
             rmse = AbstractPredictor.RMSE(predRegion2value, testMatrix[property])
-            print "RMSE: ", rmse
+            of.write("RMSE: " + str(rmse) + "\n")
             property2RMSE[property] = rmse
-            mase = AbstractPredictor.MASE(predRegion2value, testMatrix[property], True)
-            print "MASE: ", mase
+            mase = AbstractPredictor.MASE(predRegion2value, testMatrix[property])
+            of.write("MASE: " + str(mase) + "\n")
             property2MASE[property] = mase
             
         #return numpy.mean(MAPEs)
-        print "properties ordered by MAPE"
+        of.write("properties ordered by MAPE\n")
         sortedMAPEs = sorted(property2MAPE.items(), key=operator.itemgetter(1))
         for property, mape in sortedMAPEs:
-            print property, ":", mape 
+            of.write(property + ":" + str(mape)+"\n") 
                            
-        print "properties ordered by MASE"
+        of.write("properties ordered by MASE\n")
         sortedMASEs = sorted(property2MASE.items(), key=operator.itemgetter(1))
         for property, mase in sortedMASEs:
-            print property, ":", mase 
+            of.write(property + ":" + str(mase)+"\n") 
         
         
-        print "avg. MAPE: ", numpy.mean(property2MAPE.values())
-        print "avg. RMSE: ", numpy.mean(property2RMSE.values())
-        print "avg. MASE: ", numpy.mean(property2MASE.values())
+        of.write("avg. MAPE: " + str(numpy.mean(property2MAPE.values())) +"\n")
+        of.write("avg. RMSE: " + str(numpy.mean(property2RMSE.values())) +"\n")
+        of.write("avg. MASE: " + str(numpy.mean(property2MASE.values())) +"\n")
         # we use MASE as the main metric, which is returned to guide the hyperparamter selection
         return numpy.mean(property2MAPE.values())
     
@@ -225,17 +230,7 @@ class AbstractPredictor(object):
     def MAPE(predDict, trueDict, verbose=False):        
         absPercentageErrors = {}
         keysInCommon = list(set(predDict.keys()) & set(trueDict.keys()))
-        
-        
-        # if there is a zero in the values we are evaluating against 
-        #if 0.0 in trueDict.values():
-        #    minAbsValue = float("inf")
-        #    for value in trueDict.values():
-        #        if numpy.abs(value) > 0 and numpy.abs(value) < minAbsValue:
-        #            minAbsValue = numpy.abs(value)
-        #else:
-        #    minAbsValue = 0
-        
+                
         #print keysInCommon
         for key in keysInCommon:
             # avoid 0's

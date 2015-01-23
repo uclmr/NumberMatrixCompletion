@@ -17,16 +17,16 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         # This is the scaling factor
         self.scalingFactor = None
         
-    def predict(self, property, region):
+    def predict(self, property, region, of):
         # it can be the case that we haven't got anything for a country
         if property in self.property2vector and region in self.property2region2Vector[property]:
             # remember to mulitply with the scaling factor
             return numpy.dot(self.property2vector[property], self.property2region2Vector[property][region]) * self.scalingFactor
         else:
-            print "no vector for property ", property.encode('utf-8'), " or no vector for region ", region.encode('utf-8'), " for this property"
+            of.write("no vector for property " + property.encode('utf-8') + " or no vector for region " + region.encode('utf-8') + " for this property\n")
             return fixedValuePredictor.FixedValuePredictor.predict(self, property, region)
         
-    def trainRelation(self, property, trainRegion2value, textMatrix, learningRate, regParam, iterations, filterThreshold, learningRateBalance):
+    def trainRelation(self, property, trainRegion2value, textMatrix, of, learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale):
 
         # get the back up fixed values
         fixedValuePredictor.FixedValuePredictor.trainRelation(self, property, trainRegion2value, textMatrix)
@@ -35,11 +35,11 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         filteredPatterns = []
         filteredPatternMAPES = []
 
-        scaling = True
+        scaling = scale
         # if scaling
         if scaling:
             self.scalingFactor = max(numpy.abs(numpy.min(trainRegion2value.values())), numpy.abs(numpy.max(trainRegion2value.values())))
-            print "scaling factor:", self.scalingFactor
+            of.write("scaling factor:" + str(self.scalingFactor) + "\n")
         else:
             self.scalingFactor = 1.0            
         
@@ -65,9 +65,9 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         scaledTextMatrix[pattern] = region2value
                     # order it so that we don't have issues with random init           
                     scaledTextMatrix[pattern] = OrderedDict(sorted(scaledTextMatrix[pattern].items(), key=lambda t: t[0]))
-        print property, ", patterns left after filtering ", len(filteredPatterns)
+        of.write(property+ ", patterns left after filtering " + str(len(filteredPatterns)) + "\n")
         if len(filteredPatterns) == 0:
-            print property, ", no patterns left after filtering, SKIP"
+            of.writeln(property, ", no patterns left after filtering, SKIP")
             return
         
         # if scaling
@@ -83,11 +83,11 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         scaledTrainRegion2value = OrderedDict(sorted(scaledTrainRegion2value.items(), key=lambda t: t[0]))
         
         
-        print property, " training starting now"
+        of.write(property + " training starting now\n")
         
         # set it according to the text patterns   
         dims = max(2, int(numpy.ceil(numpy.sqrt(len(filteredPatterns)))))
-        print property, ", set the dimensions to the square root of the text patterns = ", dims 
+        of.write(property + ", set the dimensions to the square root of the text patterns = " + str(dims) + "\n") 
     
         #regParam /= numpy.power(dims, 0.1)
         #print property, "set the reg param to ", regParam
@@ -116,13 +116,10 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                     trainingRegion2counts[region] += 1 
                     
         
-        print property, ", regions after filtering: ", len(region2Vector)
+        of.write(property + ", regions after filtering: " + str(len(region2Vector)) + "\n")
         
-        print property, ", values present ", valuesPresent, " density ", float(valuesPresent)/(len(filteredPatterns)*len(region2Vector))
-        
-        #propertyLearningRate = (float(valuesPresent)/len(trainRegion2value))* learningRate
-        # let's go!
-        
+        of.write(property + ", values present " + str(valuesPresent) + " density " + str(float(valuesPresent)/(len(filteredPatterns)*len(region2Vector))) + "\n")
+                
         allpps = [property] + filteredPatterns
 
         # calculate the initial trainError just to make sure we have the same starting point
@@ -133,7 +130,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 pred = numpy.dot(propertyVector,region2Vector[region]) * self.scalingFactor
                 error = pred - value 
                 absoluteErrors.append(numpy.absolute(error))
-        print property, ", initial reconstruction mean absolute error on trainMatrix=", numpy.mean(absoluteErrors) 
+        of.write(property + ", initial reconstruction mean absolute error on trainMatrix=" + str(numpy.mean(absoluteErrors)) + "\n") 
         
         
         for iter in xrange(iterations):
@@ -161,24 +158,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
 
                         # so this the possibly scaled reconstruction error
                         eij = value - numpy.dot(ppVector,region2Vector[region])
-                        
-                        # This essentially divide all entries of the matrix with this factor
-                        # We have to remember to multiply the prediction again.
-                        #eij = value/self.scalingFactor - numpy.dot(ppVector,region2Vector[region])
-                        
-                        # scale it
-                        #eij /= medianAbs
-                        # kind of APE 
-                        #if numpy.abs(value) > 1: 
-                        #    eij /= numpy.square(value)
-                        #if region in trainRegion2value and not (trainRegion2value[region] == 0):
-                        #    eij /= numpy.abs(trainRegion2value[region])
-                        #else:
-                        #    eij /= absPropertyMedian
-                        
-                        #if numpy.abs(eij) > 1:
-                        #    eij = numpy.sign(eij)
-                            
+                                                    
                         ppVector += lr * (2 * eij * region2Vector[region] - regParam * ppVector)
                         region2Vector[region] += lr * (2 * eij * ppVector - regParam * region2Vector[region])
         
@@ -195,15 +175,15 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         absoluteErrors.append(numpy.absolute(error))
                         #squaredErrors.append(numpy.square(error))
                     except FloatingPointError:
-                        print property, ", iteration ", iter, ", error for region ", region.encode('utf-8'), " too big, IGNORED"
+                        of.write(property + ", iteration " + str(iter) + ", error for region " + region.encode('utf-8') + " too big, IGNORED\nnnnn.,mn,,m.n,,.,./..///////,.m/.,")
                     preds[region] = pred
             #mase = self.MASE(preds, trainRegion2value)
             mape = self.MAPE(preds, trainRegion2value)
             #print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
-            print property, ", iteration ", iter, " reconstruction mean absolute error on trainMatrix=", numpy.mean(absoluteErrors)
+            of.write(property + ", iteration " + str(iter) + " reconstruction mean absolute error on trainMatrix=" + str(numpy.mean(absoluteErrors)) + "\n")
             #print property, ", iteration ", iter, " MASE on trainMatrix=", mase
             # MAPE ignores scale
-            print property, ", iteration ", iter, " MAPE on trainMatrix=", mape
+            of.write(property + ", iteration " + str(iter) + " MAPE on trainMatrix=" + str(mape) + "\n")
 
             #patternSquaredErrors = []
             patternAbsoluteErrors = []
@@ -219,9 +199,9 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                     predVals[region+pattern] = pred
             #print property, ", iteration ", iter, " reconstruction mean squared error on textMatrix=", numpy.mean(patternSquaredErrors)
             textMean = numpy.mean(patternAbsoluteErrors)
-            print property, ", iteration ", iter, " reconstruction mean absolute error on textMatrix=", textMean 
+            of.write(property + ", iteration " + str(iter) + " reconstruction mean absolute error on textMatrix=" + str(textMean) + "\n") 
             patternMape = self.MAPE(predVals, trueVals)
-            print property, ", iteration ", iter, " MAPE on textMatrix=", patternMape 
+            of.write(property + ", iteration " + str(iter) + " MAPE on textMatrix=" + str(patternMape) + "\n") 
             
             euclidDistanceFromPropertyVector = {}
             pVectorSquare = numpy.dot(propertyVector, propertyVector)
@@ -234,9 +214,9 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             
             sortedPaterns= sorted(euclidDistanceFromPropertyVector.items(), key=operator.itemgetter(1))
             
-            print "top-10 patterns closest to the property in euclidean distance : distance from property "
+            of.write("top-10 patterns closest to the property in euclidean distance : distance from property\n")
             for idx in xrange(min(10, len(sortedPaterns))):
-                print sortedPaterns[idx][0].encode('utf-8'), ":", sortedPaterns[idx][1]
+                of.write(sortedPaterns[idx][0].encode('utf-8') + ":" +  str(sortedPaterns[idx][1])+ "\n")
             
             if mape < 0.000001:
                 break
@@ -293,12 +273,15 @@ if __name__ == "__main__":
     trainMatrix = predictor.loadMatrix(sys.argv[1])
     textMatrix = predictor.loadMatrix(sys.argv[2])
     testMatrix = predictor.loadMatrix(sys.argv[3])
+    
+    outputFileName = sys.argv[4]
 
     learningRates = [0.0001]
-    l2penalties = [0.1]
-    iterations =  [1000, 10000] #[1000, 2000, 4000, 8000, 10000]
-    filterThresholds = [0.01]
+    l2penalties = [0.1,0.2,0.3]
+    iterations =  [1000, 2000, 4000, 8000, 10000]
+    filterThresholds = [0.02,0.04]
     learningRateBalances = [0.0, 1.0]
+    scale = [False, True]
     
     # These are the winning ones:
     #learningRates = [0.0001]
@@ -311,9 +294,9 @@ if __name__ == "__main__":
     #properties = json.loads(open("/cs/research/intelsys/home1/avlachos/FactChecking/featuresKept.json"))
     # Othewise, specify which ones are needed:
     #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]
-    #properties = ["/location/statistical_region/cpi_inflation_rate"]
-    properties = ["/location/statistical_region/population"]
+    properties = ["/location/statistical_region/cpi_inflation_rate"]
+    #properties = ["/location/statistical_region/population"]
     
     # TODO: this function should now return the best parameters per relation 
-    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, [learningRates, l2penalties, iterations, filterThresholds, learningRateBalances])
-    predictor.runEval(trainMatrix, textMatrix, testMatrix, property2bestParams)
+    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, [learningRates, l2penalties, iterations, filterThresholds, learningRateBalances, scale])
+    #predictor.runEval(trainMatrix, textMatrix, testMatrix, property2bestParams)

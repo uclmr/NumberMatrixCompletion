@@ -71,20 +71,26 @@ class AbstractPredictor(object):
         of = open(ofn, "w")
         print "Training"
         learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale = params
-        predictor.trainRelation(property, trainRegion2value, textMatrix, of, learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale)
-        print "Testing"
-        predMatrix = {}
-        predMatrix[property] = {}
-        for region in testRegion2value:
-            predMatrix[property][region] = predictor.predict(property, region, of)
-        
-        testMatrix = {}
-        testMatrix[property] = testRegion2value
-        avgScore = predictor.eval(predMatrix, testMatrix, of)
-        of.write("fold:" + ofn.split("_")[-1] + " MAPE:" + str(avgScore) + "\n")
-        of.close()        
-        d[int(ofn.split("_")[-1])] =  avgScore
-        return avgScore
+        try:
+            predictor.trainRelation(property, trainRegion2value, textMatrix, of, learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale)
+        except FloatingPointError:
+            print "Training with params ", params, " failed due to floating point error"
+            avgScore = float("inf")
+        else:
+            print "Testing"
+            predMatrix = {}
+            predMatrix[property] = {}
+            for region in testRegion2value:
+                predMatrix[property][region] = predictor.predict(property, region, of)
+            
+            testMatrix = {}
+            testMatrix[property] = testRegion2value
+            avgScore = predictor.eval(predMatrix, testMatrix, of)
+            of.write("fold:" + ofn.split("_")[-1] + " MAPE:" + str(avgScore) + "\n")
+        finally:
+            of.close()        
+            d[int(ofn.split("_")[-1])] =  avgScore
+            return avgScore
     
     
     # the paramSets
@@ -110,7 +116,7 @@ class AbstractPredictor(object):
         
         # here we keep the best params found for each relation 
         property2bestParams = {}        
-        
+        bestParams = [None]
 
         # for each of the properties we decide 
         for property in properties:
@@ -178,13 +184,17 @@ class AbstractPredictor(object):
                     
                 orderedFold2MAPE = OrderedDict(sorted(d.items(), key=lambda t: t[0]))                    
                 # get the average across folds    
-                avgMAPE = numpy.mean(orderedFold2MAPE.values())
-                print property + ":params:", params, " avgMAPE:", avgMAPE, "stdMAPE:", numpy.std(orderedFold2MAPE.values()), "foldMAPEs:", orderedFold2MAPE.values()
+                if float("inf") not in orderedFold2MAPE.values():
+                    avgMAPE = numpy.mean(orderedFold2MAPE.values())
+                    print property + ":params:", params, " avgMAPE:", avgMAPE, "stdMAPE:", numpy.std(orderedFold2MAPE.values()), "foldMAPEs:", orderedFold2MAPE.values()
+                    # lower is better
+                    if avgMAPE < lowestAvgMAPE:
+                        bestParams = params
+                        lowestAvgMAPE = avgMAPE
+                    
+                else:
+                    print property + ":params:", params, "Training in some folds failed due to overflow", "foldMAPEs:", orderedFold2MAPE.values()
             
-                # lower is better
-                if avgMAPE < lowestAvgMAPE:
-                    bestParams = params
-                    lowestAvgMAPE = avgMAPE
                 
 
             print property + ": lowestAvgMAPE:", lowestAvgMAPE

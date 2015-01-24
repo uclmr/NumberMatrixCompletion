@@ -155,12 +155,15 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         else:
                             ppVector = pattern2vector[pp]
                             lr = learningRate
-
-                        # so this the possibly scaled reconstruction error
-                        eij = value - numpy.dot(ppVector,region2Vector[region])
+                        
+                        try:
+                            # so this the possibly scaled reconstruction error
+                            eij = value - numpy.dot(ppVector,region2Vector[region])
                                                     
-                        ppVector += lr * (2 * eij * region2Vector[region] - regParam * ppVector)
-                        region2Vector[region] += lr * (2 * eij * ppVector - regParam * region2Vector[region])
+                            ppVector += lr * (2 * eij * region2Vector[region] - regParam * ppVector)
+                            region2Vector[region] += lr * (2 * eij * ppVector - regParam * region2Vector[region])
+                        except FloatingPointError:
+                            raise(FloatingPointError())
         
             # let's calculate the squared reconstruction error
             # maybe look only at the training data?
@@ -276,25 +279,25 @@ if __name__ == "__main__":
     outputFileName = sys.argv[4]
 
     learningRates = [0.0001]
-    l2penalties = [0.1]
-    iterations =  [10]
-    filterThresholds = [0.02]
-    learningRateBalances = [0.0]
-    scale = [False]
+    l2penalties = [0.3]
+    iterations =  [10000]
+    filterThresholds = [0.012]
+    learningRateBalances = [0.0, 1.0]
+    scale = [False,True]
     
     # These are the winning ones:
     #learningRates = [0.0001]
     #l2penalties = [0.3]
     #iterations = [10000]
-    #filterThresholds = [0.02]
+    #filterThresholds = [0.012]
     #learningRateBalances = [0.0, 1.0]
     
     # this loads all relations
     #properties = json.loads(open("/cs/research/intelsys/home1/avlachos/FactChecking/featuresKept.json"))
     # Othewise, specify which ones are needed:
     #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]
-    properties = ["/location/statistical_region/cpi_inflation_rate"]
-    #properties = ["/location/statistical_region/population"]
+    #properties = ["/location/statistical_region/cpi_inflation_rate"]
+    properties = ["/location/statistical_region/population"]
     
     # TODO: this function should now return the best parameters per relation 
     property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, [learningRates, l2penalties, iterations, filterThresholds, learningRateBalances, scale])

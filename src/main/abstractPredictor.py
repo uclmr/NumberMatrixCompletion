@@ -8,6 +8,8 @@ import numpy
 import random
 from sklearn.metrics import mean_squared_error
 import math
+import multiprocessing
+from collections import OrderedDict
 
 
 class AbstractPredictor(object):
@@ -64,8 +66,9 @@ class AbstractPredictor(object):
         return avgScore
      
     @classmethod
-    def runRelEval(cls, property, trainRegion2value, textMatrix, testRegion2value, of, params):
+    def runRelEval(cls, d, property, trainRegion2value, textMatrix, testRegion2value, ofn, params):        
         predictor = cls()
+        of = open(ofn, "w")
         print "Training"
         learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale = params
         predictor.trainRelation(property, trainRegion2value, textMatrix, of, learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale)
@@ -78,6 +81,9 @@ class AbstractPredictor(object):
         testMatrix = {}
         testMatrix[property] = testRegion2value
         avgScore = predictor.eval(predMatrix, testMatrix, of)
+        of.write("fold:" + ofn.split("_")[-1] + " MAPE:" + str(avgScore) + "\n")
+        of.close()        
+        d[int(ofn.split("_")[-1])] =  avgScore
         return avgScore
     
     
@@ -103,18 +109,14 @@ class AbstractPredictor(object):
                 property2folds[property][foldNo][region] = region2value[region]
         
         # here we keep the best params found for each relation 
-        property2bestParams = {}
+        property2bestParams = {}        
+        
 
         # for each of the properties we decide 
         for property in properties:
             print "property: " + property
             # this keeps the lowest MAPE achieved for this property across folds
             lowestAvgMAPE = float("inf")                
-
-
-            #TODO: this is to handle the folds on different processors
-            #mgr = multiprocessing.Manager()
-            #d = mgr.dict()
 
             # for each parameter setting
             learningRates, l2penalties, iterations, filterThresholds, learningRateBalances, scale = paramGroups
@@ -132,6 +134,12 @@ class AbstractPredictor(object):
             
             for params in paramSets:
                 print "params: ", params 
+                
+                # this is to do the cross validation across folds
+                mgr = multiprocessing.Manager()
+                d = mgr.dict()    
+                jobs = []    
+
                 
                 paramMAPEs = []
                 # for each fold    
@@ -156,18 +164,22 @@ class AbstractPredictor(object):
                     predictor = cls()
                     # run the eval
                     # open the file for the relation, fold and params
-                    ofn = outputFileName + "_" + "_".join([property.split("/")[-1], "l" + str(params[0]), "p" + str(params[1]), "i" + str(params[2]), "f" + str(params[3]), "b" + str(params[4]), "s" + str(params[5]), str(foldNo)])
-                    of = open(ofn, "w")
-                    mape = predictor.runRelEval(property, foldTrainRegion2value, textMatrix, foldTestRegion2value, of, params)
+                    ofn = outputFileName + "_" + "_".join([property.split("/")[-1], "l" + str(params[0]), "p" + str(params[1]), "i" + str(params[2]), "f" + str(params[3]), "b" + str(params[4]), "s" + str(params[5]), str(foldNo)])                    
+                    job = multiprocessing.Process(target=predictor.runRelEval, args=(d, property, foldTrainRegion2value, textMatrix, foldTestRegion2value, ofn, params,))
+                    jobs.append(job)
+
+                # start all the jobs
+                for j in jobs:
+                    j.start()
+
+                # Ensure all of the processes have finished
+                for j in jobs:
+                    j.join()
                     
-                    of.write("fold:" + str(foldNo) + " MAPE:" + str(mape) + "\n")
-                    of.close()
-                    # add the score for the fold
-                    paramMAPEs.append(mape)
-                    
+                orderedFold2MAPE = OrderedDict(sorted(d.items(), key=lambda t: t[0]))                    
                 # get the average across folds    
-                avgMAPE = numpy.mean(paramMAPEs)
-                print "params:", params, " avgMAPE:", avgMAPE, "stdMAPE:", numpy.std(paramMAPEs), "foldMAPEs:", paramMAPEs
+                avgMAPE = numpy.mean(orderedFold2MAPE.values())
+                print property + ":params:", params, " avgMAPE:", avgMAPE, "stdMAPE:", numpy.std(orderedFold2MAPE.values()), "foldMAPEs:", orderedFold2MAPE.values()
             
                 # lower is better
                 if avgMAPE < lowestAvgMAPE:

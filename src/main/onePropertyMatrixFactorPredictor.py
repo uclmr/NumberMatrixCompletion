@@ -37,13 +37,19 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         filteredPatternMAPES = []
 
         # this is to be used to avoid superhuge errors        
-        errorBound = max(numpy.abs(numpy.min(trainRegion2value.values())), numpy.abs(numpy.max(trainRegion2value.values())))
-
+        #errorBound = max(numpy.abs(numpy.min(trainRegion2value.values())), numpy.abs(numpy.max(trainRegion2value.values())))
+        errorBound = numpy.abs(numpy.median(trainRegion2value.values()))
+        of.write("error bound:"  + str(errorBound) + "\n")
         scaling = scale
         # if scaling
         if scaling:
-            self.scalingFactor = max(numpy.abs(numpy.min(trainRegion2value.values())), numpy.abs(numpy.max(trainRegion2value.values())))
+            #self.scalingFactor = max(numpy.abs(numpy.min(trainRegion2value.values())), numpy.abs(numpy.max(trainRegion2value.values())))/100
+            self.scalingFactor = numpy.abs(numpy.median(trainRegion2value.values()))
+            #self.scalingFactor = min(numpy.abs(numpy.min(trainRegion2value.values())), numpy.abs(numpy.max(trainRegion2value.values())))/100
             of.write("scaling factor:" + str(self.scalingFactor) + "\n")
+            # scale the error bound too!
+            errorBound /= self.scalingFactor
+            of.write("error bound after scaling:"  + str(errorBound) + "\n")
         else:
             self.scalingFactor = 1.0            
         
@@ -101,7 +107,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
     
         # initialize the low dim representations
         # first the property
-        propertyVector = numpy.random.rand(dims)/1000000000
+        propertyVector = numpy.random.rand(dims)/1000
         
 
         # then the patterns and the regions
@@ -111,10 +117,10 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         trainingRegion2counts = Counter()
         valuesPresent = 0
         
-        regV = numpy.random.rand(dims)/1000000000
+        regV = numpy.random.rand(dims)/1000
         
         for pattern in filteredPatterns:
-            pattern2vector[pattern] = numpy.random.rand(dims)/1000000000
+            pattern2vector[pattern] = numpy.random.rand(dims)/1000
             valuesPresent += len(scaledTextMatrix[pattern]) 
             for region in scaledTextMatrix[pattern].keys():
                 if region not in region2Vector:
@@ -169,8 +175,8 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                             #of.write(region.encode('utf-8') + " " + pp.encode('utf-8') + " original value:" + str(value) + " error:" + str(eij) + "\n")                            
                             # if the error is too large (2 times the max abs value) then set it to that
 
-                            if numpy.abs(eij) > 2*errorBound:                                
-                                eij = 2*errorBound * numpy.sign(eij)                            
+                            if numpy.abs(eij) > errorBound:                                
+                                eij = errorBound * numpy.sign(eij)                            
          
                             ppVector += lr * (2 * eij * region2Vector[region] - regParam * ppVector)
                             region2Vector[region] += lr * (2 * eij * ppVector - regParam * region2Vector[region])
@@ -291,11 +297,11 @@ if __name__ == "__main__":
     outputFileName = sys.argv[4]
 
     learningRates = [0.0001]
-    l2penalties = [0.3, 0.4, 0.5]
-    iterations =  [30000]
-    filterThresholds = [0.012]
+    l2penalties = [0.3]
+    iterations =  [10000, 20000, 30000]
+    filterThresholds = [0.015]
     learningRateBalances = [0.0, 1.0, 2.0]
-    scale = [False]
+    scale = [True]
     
     # These are the winning ones:
     #learningRates = [0.0001]
@@ -310,7 +316,8 @@ if __name__ == "__main__":
     #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]
     #properties = ["/location/statistical_region/cpi_inflation_rate"]
     #properties = ["/location/statistical_region/population"]
-    properties = ["/location/statistical_region/fertility_rate"]
+    #properties = ["/location/statistical_region/fertility_rate"]
+    properties = ["/location/statistical_region/gdp_real"]
     
     # TODO: this function should now return the best parameters per relation 
     property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, [learningRates, l2penalties, iterations, filterThresholds, learningRateBalances, scale])

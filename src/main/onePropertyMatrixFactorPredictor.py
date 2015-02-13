@@ -188,59 +188,60 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             # let's calculate the squared reconstruction error
             # maybe look only at the training data?
             #squaredErrors = []
-            absoluteErrors = []
-            preds = {}
-            for region, value in trainRegion2value.items():
-                if region in region2Vector:
-                    pred = numpy.dot(propertyVector,region2Vector[region]) * self.scalingFactor
-                    try:
+            if iter % 100 == 0:
+                absoluteErrors = []
+                preds = {}
+                for region, value in trainRegion2value.items():
+                    if region in region2Vector:
+                        pred = numpy.dot(propertyVector,region2Vector[region]) * self.scalingFactor
+                        try:
+                            error = pred - value
+                            absoluteErrors.append(numpy.absolute(error))
+                            #squaredErrors.append(numpy.square(error))
+                        except FloatingPointError:
+                            of.write(property + ", iteration " + str(iter) + ", error for region " + region.encode('utf-8') + " too big, IGNORED\nnnnn.,mn,,m.n,,.,./..///////,.m/.,")
+                        preds[region] = pred
+                #mase = self.MASE(preds, trainRegion2value)
+                mape = self.MAPE(preds, trainRegion2value)
+                #print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
+                of.write(property + ", iteration " + str(iter) + " reconstruction mean absolute error on trainMatrix=" + str(numpy.mean(absoluteErrors)) + "\n")
+                #print property, ", iteration ", iter, " MASE on trainMatrix=", mase
+                # MAPE ignores scale
+                of.write(property + ", iteration " + str(iter) + " MAPE on trainMatrix=" + str(mape) + "\n")
+    
+                #patternSquaredErrors = []
+                patternAbsoluteErrors = []
+                trueVals = {}
+                predVals = {}            
+                for pattern in filteredPatterns:
+                    region2value = textMatrix[pattern]
+                    for region, value in region2value.items():
+                        pred = numpy.dot(pattern2vector[pattern],region2Vector[region])  * self.scalingFactor
                         error = pred - value
-                        absoluteErrors.append(numpy.absolute(error))
-                        #squaredErrors.append(numpy.square(error))
+                        patternAbsoluteErrors.append(numpy.absolute(error))
+                        trueVals[region+pattern] = value
+                        predVals[region+pattern] = pred
+                #print property, ", iteration ", iter, " reconstruction mean squared error on textMatrix=", numpy.mean(patternSquaredErrors)
+                textMean = numpy.mean(patternAbsoluteErrors)
+                of.write(property + ", iteration " + str(iter) + " reconstruction mean absolute error on textMatrix=" + str(textMean) + "\n") 
+                patternMape = self.MAPE(predVals, trueVals)
+                of.write(property + ", iteration " + str(iter) + " MAPE on textMatrix=" + str(patternMape) + "\n") 
+                
+                euclidDistanceFromPropertyVector = {}
+                pVectorSquare = numpy.dot(propertyVector, propertyVector)
+                for pattern, vector in pattern2vector.items():
+                    # if the distance is too high ignore.
+                    try:
+                        euclidDistanceFromPropertyVector[pattern] = numpy.sqrt(numpy.dot(vector, vector) - 2 * numpy.dot(vector, propertyVector) + pVectorSquare)
                     except FloatingPointError:
-                        of.write(property + ", iteration " + str(iter) + ", error for region " + region.encode('utf-8') + " too big, IGNORED\nnnnn.,mn,,m.n,,.,./..///////,.m/.,")
-                    preds[region] = pred
-            #mase = self.MASE(preds, trainRegion2value)
-            mape = self.MAPE(preds, trainRegion2value)
-            #print property, ", iteration ", iter, " reconstruction mean squared error on trainMatrix=", numpy.mean(squaredErrors)
-            of.write(property + ", iteration " + str(iter) + " reconstruction mean absolute error on trainMatrix=" + str(numpy.mean(absoluteErrors)) + "\n")
-            #print property, ", iteration ", iter, " MASE on trainMatrix=", mase
-            # MAPE ignores scale
-            of.write(property + ", iteration " + str(iter) + " MAPE on trainMatrix=" + str(mape) + "\n")
-
-            #patternSquaredErrors = []
-            patternAbsoluteErrors = []
-            trueVals = {}
-            predVals = {}            
-            for pattern in filteredPatterns:
-                region2value = textMatrix[pattern]
-                for region, value in region2value.items():
-                    pred = numpy.dot(pattern2vector[pattern],region2Vector[region])  * self.scalingFactor
-                    error = pred - value
-                    patternAbsoluteErrors.append(numpy.absolute(error))
-                    trueVals[region+pattern] = value
-                    predVals[region+pattern] = pred
-            #print property, ", iteration ", iter, " reconstruction mean squared error on textMatrix=", numpy.mean(patternSquaredErrors)
-            textMean = numpy.mean(patternAbsoluteErrors)
-            of.write(property + ", iteration " + str(iter) + " reconstruction mean absolute error on textMatrix=" + str(textMean) + "\n") 
-            patternMape = self.MAPE(predVals, trueVals)
-            of.write(property + ", iteration " + str(iter) + " MAPE on textMatrix=" + str(patternMape) + "\n") 
-            
-            euclidDistanceFromPropertyVector = {}
-            pVectorSquare = numpy.dot(propertyVector, propertyVector)
-            for pattern, vector in pattern2vector.items():
-                # if the distance is too high ignore.
-                try:
-                    euclidDistanceFromPropertyVector[pattern] = numpy.sqrt(numpy.dot(vector, vector) - 2 * numpy.dot(vector, propertyVector) + pVectorSquare)
-                except FloatingPointError:
-                    pass
-            
-            sortedPaterns= sorted(euclidDistanceFromPropertyVector.items(), key=operator.itemgetter(1))
-            
-            of.write("top-10 patterns closest to the property in euclidean distance : distance from property\n")
-            for idx in xrange(min(10, len(sortedPaterns))):
-                of.write(sortedPaterns[idx][0].encode('utf-8') + ":" +  str(sortedPaterns[idx][1])+ "\n")
-            
+                        pass
+                
+                sortedPaterns= sorted(euclidDistanceFromPropertyVector.items(), key=operator.itemgetter(1))
+                
+                of.write("top-10 patterns closest to the property in euclidean distance : distance from property\n")
+                for idx in xrange(min(10, len(sortedPaterns))):
+                    of.write(sortedPaterns[idx][0].encode('utf-8') + ":" +  str(sortedPaterns[idx][1])+ "\n")
+                
             if mape < 0.000001:
                 break
         
@@ -315,6 +316,8 @@ if __name__ == "__main__":
                     for lrb in learningRateBalances:
                         for sc in scale:
                             paramSets.append([lr,l2,iters,ft,lrb, sc])
+                            
+    paramSets = [[0.0001, 0.2, 20000, 0.012, 1.0, True]]
     
     # These are the winning ones:
     #learningRates = [0.0001]
@@ -330,8 +333,25 @@ if __name__ == "__main__":
     #properties = ["/location/statistical_region/cpi_inflation_rate"]
     #properties = ["/location/statistical_region/population"]
     #properties = ["/location/statistical_region/fertility_rate"]
-    properties = ["/location/statistical_region/gdp_real"]
+    properties = ["/location/statistical_region/gdp_nominal_per_capita"]
     
-    # TODO: this function should now return the best parameters per relation 
+ 
     property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, paramSets)
-    #predictor.runEval(trainMatrix, textMatrix, testMatrix, property2bestParams)
+
+    #property2bestParams = {"/location/statistical_region/gdp_nominal_per_capita": [0.0001, 0.2, 20000, 0.012, 1.0, True]}
+    property2MAPE = {}
+    for property in properties:
+        paramsStrs = []
+        for param in property2bestParams[property]:
+            paramsStrs.append(str(param))
+
+        ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_TEST"
+        a= {}
+        OnePropertyMatrixFactorPredictor.runRelEval(a, property, trainMatrix[property], textMatrix, testMatrix[property], ofn, property2bestParams[property])
+        property2MAPE[property] = a.values()[0]
+                
+    for property in sorted(property2MAPE):
+        print property, property2MAPE[property]
+    print "avg MAPE:", str(numpy.mean(property2MAPE.values()))
+
+    

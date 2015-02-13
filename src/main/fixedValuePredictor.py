@@ -9,14 +9,16 @@ class FixedValuePredictor(abstractPredictor.AbstractPredictor):
         self.property2fixedValue = {}
         
         
-    def predict(self, property, region):
+    def predict(self, property, region, of=None):
         return self.property2fixedValue[property]
 
 
     # TODO: remove the textMatrix from the arg list
-    def trainRelation(self, property, trainRegion2value, textMatrix, params=None): 
+    def trainRelation(self, property, trainRegion2value, textMatrix, of, params=None): 
+        
         # try three options
         candidates = [0, numpy.median(trainRegion2value.values()), numpy.mean(trainRegion2value.values())]
+        #print candidates
         bestScore = float("inf")
         bestCandidate = None
         for candidate in candidates:    
@@ -28,13 +30,13 @@ class FixedValuePredictor(abstractPredictor.AbstractPredictor):
             if mape < bestScore:
                 bestScore = mape
                 bestCandidate = candidate
-                
+
         if bestCandidate == 0:
-            print property, " best value is 0 with score ", bestScore 
+            of.write(property + " best value is 0 with score " + str(bestScore) + "\n") 
         elif bestCandidate == numpy.median(trainRegion2value.values()):
-            print property, " best value is median with score ", bestScore
+            of.write(property + " best value is median (" + str(numpy.median(trainRegion2value.values())) + ") with score " + str(bestScore) + "\n")
         elif bestCandidate == numpy.mean(trainRegion2value.values()):
-            print property, " best value is mean with score ", bestScore                
+            of.write(property + " best value is mean (" + str(numpy.mean(trainRegion2value.values())) + ") with score " + str(bestScore) + "\n")                
         self.property2fixedValue[property] = bestCandidate
 
          
@@ -69,7 +71,8 @@ class FixedValuePredictor(abstractPredictor.AbstractPredictor):
 if __name__ == "__main__":
     
     import sys
-
+    import os.path
+    import json
     
     fixedValuePredictor = FixedValuePredictor()
     
@@ -77,5 +80,27 @@ if __name__ == "__main__":
     textMatrix = fixedValuePredictor.loadMatrix(sys.argv[2])
     testMatrix = fixedValuePredictor.loadMatrix(sys.argv[3])
 
-    bestParams = fixedValuePredictor.crossValidate(trainMatrix, textMatrix, 4)
-    fixedValuePredictor.runEval(trainMatrix, textMatrix, testMatrix, bestParams)
+    outputFileName = sys.argv[4]
+    
+    #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]
+    #properties = ["/location/statistical_region/population"]
+    properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json").read())
+
+    property2bestParams = fixedValuePredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, [[None]])
+    #print "OK"
+    
+    property2MAPE = {}
+    for property in properties:
+        paramsStrs = []
+        for param in property2bestParams[property]:
+            paramsStrs.append(str(param))
+
+        ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_TEST"
+        a= {}
+        fixedValuePredictor.runRelEval(a, property, trainMatrix[property], textMatrix, testMatrix[property], ofn, property2bestParams[property])
+        property2MAPE[property] = a.values()[0]
+        
+    for property in sorted(property2MAPE):
+        print property, property2MAPE[property]
+    print "avg MAPE:", str(numpy.mean(property2MAPE.values()))
+        

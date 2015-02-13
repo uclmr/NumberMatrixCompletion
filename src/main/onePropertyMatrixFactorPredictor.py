@@ -26,11 +26,13 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             of.write("no vector for property " + property.encode('utf-8') + " or no vector for region " + region.encode('utf-8') + " for this property\n")
             return fixedValuePredictor.FixedValuePredictor.predict(self, property, region)
         
-    def trainRelation(self, property, trainRegion2value, textMatrix, of, learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale):
+    def trainRelation(self, property, trainRegion2value, textMatrix, of, params):
+        
+        learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale = params
         
         #of.write(str(trainRegion2value))
         # get the back up fixed values
-        fixedValuePredictor.FixedValuePredictor.trainRelation(self, property, trainRegion2value, textMatrix)
+        fixedValuePredictor.FixedValuePredictor.trainRelation(self, property, trainRegion2value, textMatrix, of)
                 
         # first let's filter 
         filteredPatterns = []
@@ -302,6 +304,17 @@ if __name__ == "__main__":
     filterThresholds = [0.015]
     learningRateBalances = [0.0, 1.0, 2.0]
     scale = [True]
+
+    # construct the grid for paramsearch:
+    # naive grid search
+    paramSets = []
+    for lr in learningRates:
+        for l2 in l2penalties:
+            for iters in iterations:
+                for ft in filterThresholds:
+                    for lrb in learningRateBalances:
+                        for sc in scale:
+                            paramSets.append([lr,l2,iters,ft,lrb, sc])
     
     # These are the winning ones:
     #learningRates = [0.0001]
@@ -320,5 +333,5 @@ if __name__ == "__main__":
     properties = ["/location/statistical_region/gdp_real"]
     
     # TODO: this function should now return the best parameters per relation 
-    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, [learningRates, l2penalties, iterations, filterThresholds, learningRateBalances, scale])
+    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, paramSets)
     #predictor.runEval(trainMatrix, textMatrix, testMatrix, property2bestParams)

@@ -70,9 +70,11 @@ class AbstractPredictor(object):
         predictor = cls()
         of = open(ofn, "w")
         print "Training"
-        learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale = params
+        
         try:
-            predictor.trainRelation(property, trainRegion2value, textMatrix, of, learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale)
+
+            predictor.trainRelation(property, trainRegion2value, textMatrix, of, params)
+            print "Done training"
         except FloatingPointError:
             print "Training with params ", params, " failed due to floating point error"
             avgScore = float("inf")
@@ -86,16 +88,19 @@ class AbstractPredictor(object):
             testMatrix = {}
             testMatrix[property] = testRegion2value
             avgScore = predictor.eval(predMatrix, testMatrix, of)
-            of.write("fold:" + ofn.split("_")[-1] + " MAPE:" + str(avgScore) + "\n")
+            of.write("fold MAPE:" + str(avgScore) + "\n")
         finally:
-            of.close()        
-            d[int(ofn.split("_")[-1])] =  avgScore
+            of.close()
+            if ofn.split("_")[-1] == "TEST":
+                d["TEST"] =  avgScore
+            else:
+                d[int(ofn.split("_")[-1])] =  avgScore
             return avgScore
     
     
     # the paramSets
     @classmethod
-    def crossValidate(cls, trainMatrix, textMatrix, folds, properties, outputFileName, paramGroups):
+    def crossValidate(cls, trainMatrix, textMatrix, folds, properties, outputFileName, paramSets):
         # first construct the folds per relation
         property2folds = {}
         # we set the same random in order to get the same folds every time
@@ -123,20 +128,6 @@ class AbstractPredictor(object):
             print "property: " + property
             # this keeps the lowest MAPE achieved for this property across folds
             lowestAvgMAPE = float("inf")                
-
-            # for each parameter setting
-            learningRates, l2penalties, iterations, filterThresholds, learningRateBalances, scale = paramGroups
-            # naive grid search
-            paramSets = []
-            for lr in learningRates:
-                for l2 in l2penalties:
-                    for iters in iterations:
-                        for ft in filterThresholds:
-                            for lrb in learningRateBalances:
-                                for sc in scale:
-                                    paramSets.append([lr,l2,iters,ft,lrb, sc])
-                
-            
             
             for params in paramSets:
                 print "params: ", params 
@@ -170,7 +161,14 @@ class AbstractPredictor(object):
                     predictor = cls()
                     # run the eval
                     # open the file for the relation, fold and params
-                    ofn = outputFileName + "_" + "_".join([property.split("/")[-1], "l" + str(params[0]), "p" + str(params[1]), "i" + str(params[2]), "f" + str(params[3]), "b" + str(params[4]), "s" + str(params[5]), str(foldNo)])                    
+                    paramsStrs = []
+                    for param in params:
+                        paramsStrs.append(str(param))
+                    #print outputFileName
+                    #print paramsStrs
+                    #print "_".join(paramsStrs)
+                    #print property.split("/")[-1]
+                    ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_" + str(foldNo)                    
                     job = multiprocessing.Process(target=predictor.runRelEval, args=(d, property, foldTrainRegion2value, textMatrix, foldTestRegion2value, ofn, params,))
                     jobs.append(job)
 
@@ -202,7 +200,7 @@ class AbstractPredictor(object):
             property2bestParams[property] = bestParams
             
         # we return the best params 
-        return bestParams
+        return property2bestParams
             
                 
     @staticmethod
@@ -223,7 +221,7 @@ class AbstractPredictor(object):
             of.write("RMSE: " + str(rmse) + "\n")
             property2RMSE[property] = rmse
             mase = AbstractPredictor.MASE(predRegion2value, testMatrix[property])
-            of.write("MASE: " + str(mase) + "\n")
+            #of.write("MASE: " + str(mase) + "\n")
             property2MASE[property] = mase
             
         #return numpy.mean(MAPEs)
@@ -232,15 +230,15 @@ class AbstractPredictor(object):
         for property, mape in sortedMAPEs:
             of.write(property + ":" + str(mape)+"\n") 
                            
-        of.write("properties ordered by MASE\n")
-        sortedMASEs = sorted(property2MASE.items(), key=operator.itemgetter(1))
-        for property, mase in sortedMASEs:
-            of.write(property + ":" + str(mase)+"\n") 
+        #of.write("properties ordered by MASE\n")
+        #sortedMASEs = sorted(property2MASE.items(), key=operator.itemgetter(1))
+        #for property, mase in sortedMASEs:
+        #    of.write(property + ":" + str(mase)+"\n") 
         
         
         of.write("avg. MAPE: " + str(numpy.mean(property2MAPE.values())) +"\n")
         of.write("avg. RMSE: " + str(numpy.mean(property2RMSE.values())) +"\n")
-        of.write("avg. MASE: " + str(numpy.mean(property2MASE.values())) +"\n")
+        #of.write("avg. MASE: " + str(numpy.mean(property2MASE.values())) +"\n")
         # we use MASE as the main metric, which is returned to guide the hyperparamter selection
         return numpy.mean(property2MAPE.values())
     

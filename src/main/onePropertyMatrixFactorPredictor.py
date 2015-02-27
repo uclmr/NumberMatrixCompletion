@@ -66,7 +66,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             if len(keysInCommon) > 1:
                 #print pattern
                 #print region2value
-                mape = self.supportScaledMAPE(region2value, trainRegion2value, 1)
+                mape = self. MAPE(region2value, trainRegion2value)
                 if mape < filterThreshold:
                     filteredPatterns.append(pattern)
                     filteredPatternMAPES.append(mape)
@@ -81,6 +81,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                     # order it so that we don't have issues with random init           
                     scaledTextMatrix[pattern] = OrderedDict(sorted(scaledTextMatrix[pattern].items(), key=lambda t: t[0]))
         of.write(property+ ", patterns left after filtering " + str(len(filteredPatterns)) + "\n")
+        of.write(str(filteredPatterns).encode('utf-8') +"\n")
         if len(filteredPatterns) == 0:
             of.writeln(property, ", no patterns left after filtering, SKIP")
             return
@@ -100,7 +101,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
 
         
         of.write(property + " training starting now\n")
-        
+
         # set it according to the text patterns   
         dims = max(2, int(numpy.ceil(numpy.sqrt(len(filteredPatterns)))))
         of.write(property + ", set the dimensions to the square root of the text patterns = " + str(dims) + "\n") 
@@ -171,14 +172,18 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         if pp == property:
                             ppVector = propertyVector
                             # +1 is for the cases where we haven't seen this training region with any pattern
-                            lr = (learningRateBalance*trainingRegion2counts[region] + 1) * learningRate
+                            lr = learningRateBalance * learningRate
                         else:
                             ppVector = pattern2vector[pp]
                             lr = learningRate
                         
                         try:
                             # so this the squared percentage error loss (the denominator is a squared constant)
+                            #if pp == property:
                             eij = (value - numpy.dot(ppVector,region2Vector[region]))/numpy.square(value)
+                            #else:
+                            #eij = (value - numpy.dot(ppVector,region2Vector[region]))
+                            
                             #of.write(region.encode('utf-8') + " " + pp.encode('utf-8') + " original value:" + str(value) + " error:" + str(eij) + "\n")                            
                             # if the error is too large (2 times the max abs value) then set it to that
                             if numpy.abs(eij) > errorBound:                                
@@ -251,6 +256,10 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 for idx in xrange(min(10, len(sortedPaterns))):
                     of.write(sortedPaterns[idx][0].encode('utf-8') + ":" +  str(sortedPaterns[idx][1])+ "\n")
                 
+                of.write("top-10 patterns further from the property in euclidean distance : distance from property\n")
+                for idx in xrange(min(10, len(sortedPaterns))):
+                    of.write(sortedPaterns[-idx-1][0].encode('utf-8') + ":" +  str(sortedPaterns[-idx-1][1])+ "\n")
+                
             if mape < 0.000001:
                 break
         
@@ -311,12 +320,13 @@ if __name__ == "__main__":
     
     outputFileName = sys.argv[4]
 
-    learningRates = [0.0001]
-    l2penalties = [0.2, 0.3, 0.4]
-    iterations =  [15000]
-    filterThresholds = [0.02]
-    learningRateBalances = [1.0, 2.0, 3.0, 4.0, 5.0]
+    learningRates = [0.001]
+    l2penalties = [0.02]
+    iterations =  [1000, 3000, 5000, 10000]
+    filterThresholds = [0.7]
+    learningRateBalances = [1.0]
     scale = [True]
+
 
     # construct the grid for paramsearch:
     # naive grid search
@@ -343,27 +353,27 @@ if __name__ == "__main__":
     # Otherwise, specify which ones are needed:
     #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]
     #properties = ["/location/statistical_region/cpi_inflation_rate"]
-    #properties = ["/location/statistical_region/population"]
+    properties = ["/location/statistical_region/population"]
     #properties = ["/location/statistical_region/fertility_rate"]
     #properties = ["/location/statistical_region/trade_balance_as_percent_of_gdp"]
-    properties = ["/location/statistical_region/renewable_freshwater_per_capita"]
+    #properties = ["/location/statistical_region/renewable_freshwater_per_capita"]
  
-    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, paramSets)
+    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 8, properties, outputFileName, paramSets)
 
-    #property2bestParams = {"/location/statistical_region/renewable_freshwater_per_capita": [0.0001, 0.3, 10000, 0.02, 4.0, True]}
-    property2MAPE = {}
-    for property in properties:
-        paramsStrs = []
-        for param in property2bestParams[property]:
-            paramsStrs.append(str(param))
-   
-        ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_TEST"
-        a= {}
-        OnePropertyMatrixFactorPredictor.runRelEval(a, property, trainMatrix[property], textMatrix, testMatrix[property], ofn, property2bestParams[property])
-        property2MAPE[property] = a.values()[0]
-                   
-    for property in sorted(property2MAPE):
-        print property, property2MAPE[property]
-    print "avg MAPE:", str(numpy.mean(property2MAPE.values()))
+#     property2bestParams = {"/location/statistical_region/population": [0.0001, 0.1, 5000, 0.15, 1.0, True]}
+#     property2MAPE = {}
+#     for property in properties:
+#         paramsStrs = []
+#         for param in property2bestParams[property]:
+#             paramsStrs.append(str(param))
+#     
+#         ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_TEST"
+#         a= {}
+#         OnePropertyMatrixFactorPredictor.runRelEval(a, property, trainMatrix[property], textMatrix, testMatrix[property], ofn, property2bestParams[property])
+#         property2MAPE[property] = a.values()[0]
+#                     
+#     for property in sorted(property2MAPE):
+#         print property, property2MAPE[property]
+#     print "avg MAPE:", str(numpy.mean(property2MAPE.values()))
 
     

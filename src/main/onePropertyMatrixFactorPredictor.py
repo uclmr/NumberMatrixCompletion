@@ -172,7 +172,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         if pp == property:
                             ppVector = propertyVector
                             # +1 is for the cases where we haven't seen this training region with any pattern
-                            lr = learningRateBalance * learningRate
+                            lr = (learningRateBalance*trainingRegion2counts[region] + 1) * learningRate
                         else:
                             ppVector = pattern2vector[pp]
                             lr = learningRate
@@ -320,11 +320,11 @@ if __name__ == "__main__":
     
     outputFileName = sys.argv[4]
 
-    learningRates = [0.001]
-    l2penalties = [0.02]
-    iterations =  [1000, 3000, 5000, 10000]
+    learningRates = [0.0001]
+    l2penalties = [0.01, 0.05, 0.1]
+    iterations =  [15000, 20000]
     filterThresholds = [0.7]
-    learningRateBalances = [1.0]
+    learningRateBalances = [0.0, 0.1, 0.2, 0.5, 1.0]
     scale = [True]
 
 

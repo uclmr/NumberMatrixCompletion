@@ -1,6 +1,5 @@
 import fixedValuePredictor
 import numpy
-import multiprocessing
 import copy
 import operator
 from collections import Counter, OrderedDict
@@ -25,7 +24,8 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         else:
             of.write("no vector for property " + property.encode('utf-8') + " or no vector for region " + region.encode('utf-8') + " for this property\n")
             return fixedValuePredictor.FixedValuePredictor.predict(self, property, region)
-        
+    
+    #@profile  
     def trainRelation(self, property, trainRegion2value, textMatrix, of, params):
         
         learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale = params
@@ -267,42 +267,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         self.property2vector[property] = propertyVector
         self.property2region2Vector[property] = region2Vector 
         
-                    
-    
-    # parameters are: learning rate, reg_parameter, iterations, filtering threshold
-    def train(self, trainMatrix, textMatrix, params=[0.1, 1, 5000, 0.1, 1]):
-        # get the back up fixed values
-        fixedValuePredictor.FixedValuePredictor.train(self, trainMatrix, textMatrix)
-    
-        learningRate, regParam, iterations, filterThreshold, learningRateBalance = params                    
-        
-        mgr = multiprocessing.Manager()
-        d = mgr.dict()
-         
-
-        # now let's do the MF for each property separately:
-        jobs = []
-        for property in trainMatrix.keys(): # ["/location/statistical_region/renewable_freshwater_per_capita", "/location/statistical_region/population"]: # ["/location/statistical_region/size_of_armed_forces"]:#    
-            #if property in ["/location/statistical_region/fertility_rate"]: # 
-            job = multiprocessing.Process(target=self.trainRelation, args=(d, property, trainMatrix, textMatrix, learningRate, regParam, iterations, filterThreshold, learningRateBalance,))
-            jobs.append(job)
-            #else:
-            #    self.property2median[property] = numpy.median(trainMatrix[property].values())
-                
-        for j in jobs:
-            j.start()
-
-        # Ensure all of the processes have finished
-        for j in jobs:
-            j.join()
-            
-        for property, (propertyVector, region2Vector) in d.items():    
-            self.property2region2Vector[property] = copy.copy(region2Vector)
-            self.property2vector[property] = copy.copy(propertyVector)
-        
-        print "Done training"
-        
-                 
+                                     
 if __name__ == "__main__":
     
     import sys
@@ -321,10 +286,10 @@ if __name__ == "__main__":
     outputFileName = sys.argv[4]
 
     learningRates = [0.0001]
-    l2penalties = [0.01, 0.05, 0.1]
-    iterations =  [15000, 20000]
+    l2penalties = [0.01]
+    iterations =  [300]
     filterThresholds = [0.7]
-    learningRateBalances = [0.0, 0.1, 0.2, 0.5, 1.0]
+    learningRateBalances = [0.0]
     scale = [True]
 
 
@@ -358,7 +323,7 @@ if __name__ == "__main__":
     #properties = ["/location/statistical_region/trade_balance_as_percent_of_gdp"]
     #properties = ["/location/statistical_region/renewable_freshwater_per_capita"]
  
-    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 8, properties, outputFileName, paramSets)
+    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, paramSets, True)
 
 #     property2bestParams = {"/location/statistical_region/population": [0.0001, 0.1, 5000, 0.15, 1.0, True]}
 #     property2MAPE = {}

@@ -48,23 +48,7 @@ class AbstractPredictor(object):
         
     def predict(self, property, region):
         pass
-    
-    @classmethod
-    def runEval(cls, trainMatrix, textMatrix, testMatrix, property2params):
-        predictor = cls()
-        print "Training"
-        predictor.train(trainMatrix, textMatrix, property2params)
-        print "Testing"
-        predMatrix = {}
-        for property, region2value in testMatrix.items():
-            print property
-            predMatrix[property] = {}
-            for region in region2value:
-                predMatrix[property][region] = predictor.predict(property, region)
-        
-        avgScore = predictor.eval(predMatrix, testMatrix)
-        return avgScore
-     
+         
     @classmethod
     def runRelEval(cls, d, property, trainRegion2value, textMatrix, testRegion2value, ofn, params):        
         predictor = cls()
@@ -72,6 +56,7 @@ class AbstractPredictor(object):
         print "Training"
         
         try:
+            #cProfile.runctx('predictor.trainRelation(property, trainRegion2value, textMatrix, of, params)', globals(), locals())
 
             predictor.trainRelation(property, trainRegion2value, textMatrix, of, params)
             print "Done training"
@@ -100,7 +85,7 @@ class AbstractPredictor(object):
     
     # the paramSets
     @classmethod
-    def crossValidate(cls, trainMatrix, textMatrix, folds, properties, outputFileName, paramSets):
+    def crossValidate(cls, trainMatrix, textMatrix, folds, properties, outputFileName, paramSets, multi=True):
         # first construct the folds per relation
         property2folds = {}
         # we set the same random in order to get the same folds every time
@@ -132,10 +117,13 @@ class AbstractPredictor(object):
             for params in paramSets:
                 print "params: ", params 
                 
-                # this is to do the cross validation across folds
-                mgr = multiprocessing.Manager()
-                d = mgr.dict()    
-                jobs = []    
+                if multi:
+                    # this is to do the cross validation across folds
+                    mgr = multiprocessing.Manager()
+                    d = mgr.dict()    
+                    jobs = []
+                else:
+                    d= {}
 
                 
                 paramMAPEs = []
@@ -168,17 +156,21 @@ class AbstractPredictor(object):
                     #print paramsStrs
                     #print "_".join(paramsStrs)
                     #print property.split("/")[-1]
-                    ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_" + str(foldNo)                    
-                    job = multiprocessing.Process(target=predictor.runRelEval, args=(d, property, foldTrainRegion2value, textMatrix, foldTestRegion2value, ofn, params,))
-                    jobs.append(job)
+                    ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_" + str(foldNo)
+                    if multi:                    
+                        job = multiprocessing.Process(target=predictor.runRelEval, args=(d, property, foldTrainRegion2value, textMatrix, foldTestRegion2value, ofn, params,))
+                        jobs.append(job)
+                    else:
+                        predictor.runRelEval(d, property, foldTrainRegion2value, textMatrix, foldTestRegion2value, ofn, params)
 
-                # start all the jobs
-                for j in jobs:
-                    j.start()
+                if multi:
+                    # start all the jobs
+                    for j in jobs:
+                        j.start()
 
-                # Ensure all of the processes have finished
-                for j in jobs:
-                    j.join()
+                    # Ensure all of the processes have finished
+                    for j in jobs:
+                        j.join()
                     
                 orderedFold2MAPE = OrderedDict(sorted(d.items(), key=lambda t: t[0]))                    
                 # get the average across folds    

@@ -141,6 +141,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         for region in scaledTrainRegion2value.keys():
             if region not in region2Vector:
                 del scaledTrainRegion2value[region]
+                
                     
         
         of.write(property + ", regions after filtering: " + str(len(region2Vector)) + "\n")
@@ -148,6 +149,13 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         of.write(property + ", values present " + str(valuesPresent) + " density " + str(float(valuesPresent)/(len(filteredPatterns)*len(region2Vector))) + "\n")
                 
         allpps = [property] + filteredPatterns
+        
+        # prepare the data for the MF:
+        pp2scaledRegVals = {}
+        pp2scaledRegVals[property] = scaledTrainRegion2value.items()
+        for pattern in filteredPatterns:
+            pp2scaledRegVals[pattern] = scaledTextMatrix[pattern].items()
+        
 
         # calculate the initial trainError just to make sure we have the same starting point
         absoluteErrors = []
@@ -162,20 +170,20 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         #of.write(str(scaledTextMatrix))
         for iter in xrange(iterations):
             prng.shuffle(allpps)            
-            for pp in allpps:
+            for pp, regVals in pp2scaledRegVals.items():
                 # we might be getting the values from either the train matrix or the 
                 if pp == property:
-                    region2value = scaledTrainRegion2value
+                    #region2value = scaledTrainRegion2value
                     ppVector = propertyVector
                     # +1 is for the cases where we haven't seen this training region with any pattern
                     lr = (learningRateBalance*trainingRegion2counts[region] + 1) * learningRate                    
                 else:
-                    region2value = scaledTextMatrix[pp]
+                    #region2value = scaledTextMatrix[pp]
                     ppVector = pattern2vector[pp]
                     lr = learningRate
                     
                 # let's try to reconstruct each known value    
-                regVals = region2value.items()
+                #regVals = region2value.items()
                 prng.shuffle(regVals)
                 for region, value in regVals:
                     # we might not have a vector for this region, so ignore
@@ -189,7 +197,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                             
                         #of.write(region.encode('utf-8') + " " + pp.encode('utf-8') + " original value:" + str(value) + " error:" + str(eij) + "\n")                            
                         # if the error is too large (2 times the max abs value) then set it to that
-                    if numpy.abs(eij) > errorBound:                                
+                    if abs(eij) > errorBound:                                
                         eij = errorBound * numpy.sign(eij)
                             
                         # if the error is very big (more than the square of the original value)
@@ -318,7 +326,7 @@ if __name__ == "__main__":
     #properties = ["/location/statistical_region/trade_balance_as_percent_of_gdp"]
     #properties = ["/location/statistical_region/renewable_freshwater_per_capita"]
  
-    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 8, properties, outputFileName, paramSets, True)
+    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, paramSets, False)
 
 #     property2bestParams = {"/location/statistical_region/population": [0.0001, 0.1, 5000, 0.15, 1.0, True]}
 #     property2MAPE = {}

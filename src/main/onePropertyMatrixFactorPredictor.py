@@ -25,7 +25,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             of.write("no vector for property " + property.encode('utf-8') + " or no vector for region " + region.encode('utf-8') + " for this property\n")
             return fixedValuePredictor.FixedValuePredictor.predict(self, property, region)
     
-    #@profile  
+    @profile  
     def trainRelation(self, property, trainRegion2value, textMatrix, of, params):
         
         learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale = params
@@ -72,9 +72,10 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                     filteredPatternMAPES.append(mape)
                     # scale if necessary
                     if scaling:
-                        scaledRegion2value = copy.deepcopy(region2value)
+                        scaledRegion2value = {}#copy.deepcopy(region2value)
                         for region, value in region2value.items():
-                            scaledRegion2value[region] = value/self.scalingFactor
+                            if value != 0.0:
+                                scaledRegion2value[region] = value/self.scalingFactor
                         scaledTextMatrix[pattern] = scaledRegion2value
                     else:
                         scaledTextMatrix[pattern] = region2value
@@ -91,7 +92,8 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             # replace (without over-writing) the original training values
             scaledTrainRegion2value = {}
             for region, value in trainRegion2value.items():
-                scaledTrainRegion2value[region] = value/self.scalingFactor            
+                if value != 0.0:
+                    scaledTrainRegion2value[region] = value/self.scalingFactor            
         else:
             scaledTrainRegion2value = trainRegion2value
         
@@ -134,7 +136,11 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 if region not in region2Vector:
                     region2Vector[region] =  copy.deepcopy(regV)
                 if region in scaledTrainRegion2value:
-                    trainingRegion2counts[region] += 1 
+                    trainingRegion2counts[region] += 1
+                    
+        for region in scaledTrainRegion2value.keys():
+            if region not in region2Vector:
+                del scaledTrainRegion2value[region]
                     
         
         of.write(property + ", regions after filtering: " + str(len(region2Vector)) + "\n")
@@ -160,44 +166,39 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 # we might be getting the values from either the train matrix or the 
                 if pp == property:
                     region2value = scaledTrainRegion2value
+                    ppVector = propertyVector
+                    # +1 is for the cases where we haven't seen this training region with any pattern
+                    lr = (learningRateBalance*trainingRegion2counts[region] + 1) * learningRate                    
                 else:
                     region2value = scaledTextMatrix[pp]
+                    ppVector = pattern2vector[pp]
+                    lr = learningRate
+                    
                 # let's try to reconstruct each known value    
                 regVals = region2value.items()
                 prng.shuffle(regVals)
                 for region, value in regVals:
                     # we might not have a vector for this region, so ignore
-                    if region in region2Vector and value != 0.0:
+                    #if value != 0.0:
                         # reconstruction error
-                        if pp == property:
-                            ppVector = propertyVector
-                            # +1 is for the cases where we haven't seen this training region with any pattern
-                            lr = (learningRateBalance*trainingRegion2counts[region] + 1) * learningRate
-                        else:
-                            ppVector = pattern2vector[pp]
-                            lr = learningRate
-                        
-                        try:
-                            # so this the squared percentage error loss (the denominator is a squared constant)
-                            #if pp == property:
-                            eij = (value - numpy.dot(ppVector,region2Vector[region]))/numpy.square(value)
-                            #else:
-                            #eij = (value - numpy.dot(ppVector,region2Vector[region]))
+                        # so this the squared percentage error loss (the denominator is a squared constant)
+                        #if pp == property:
+                    eij = (value - numpy.dot(ppVector,region2Vector[region]))/numpy.square(value)
+                        #else:
+                        #eij = (value - numpy.dot(ppVector,region2Vector[region]))
                             
-                            #of.write(region.encode('utf-8') + " " + pp.encode('utf-8') + " original value:" + str(value) + " error:" + str(eij) + "\n")                            
-                            # if the error is too large (2 times the max abs value) then set it to that
-                            if numpy.abs(eij) > errorBound:                                
-                                eij = errorBound * numpy.sign(eij)
+                        #of.write(region.encode('utf-8') + " " + pp.encode('utf-8') + " original value:" + str(value) + " error:" + str(eij) + "\n")                            
+                        # if the error is too large (2 times the max abs value) then set it to that
+                    if numpy.abs(eij) > errorBound:                                
+                        eij = errorBound * numpy.sign(eij)
                             
-                            # if the error is very big (more than the square of the original value)
-                            # just update straight
-                            #if numpy.abs(eij) > 1:                                
-                            #    eij = numpy.sign(eij)                            
+                        # if the error is very big (more than the square of the original value)
+                        # just update straight
+                        #if numpy.abs(eij) > 1:                                
+                        #    eij = numpy.sign(eij)                            
          
-                            ppVector += lr * (2 * eij * region2Vector[region] - regParam * ppVector)
-                            region2Vector[region] += lr * (2 * eij * ppVector - regParam * region2Vector[region])
-                        except FloatingPointError:
-                            raise(FloatingPointError())
+                    ppVector += lr * (2 * eij * region2Vector[region] - regParam * ppVector)
+                    region2Vector[region] += lr * (2 * eij * ppVector - regParam * region2Vector[region])
         
             # let's calculate the squared reconstruction error
             # maybe look only at the training data?
@@ -208,12 +209,9 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 for region, value in trainRegion2value.items():
                     if region in region2Vector:
                         pred = numpy.dot(propertyVector,region2Vector[region]) * self.scalingFactor
-                        try:
-                            error = pred - value
-                            absoluteErrors.append(numpy.absolute(error))
-                            #squaredErrors.append(numpy.square(error))
-                        except FloatingPointError:
-                            of.write(property + ", iteration " + str(iter) + ", error for region " + region.encode('utf-8') + " too big, IGNORED\nnnnn.,mn,,m.n,,.,./..///////,.m/.,")
+                        error = pred - value
+                        absoluteErrors.append(numpy.absolute(error))
+                        #squaredErrors.append(numpy.square(error))
                         preds[region] = pred
                 #mase = self.MASE(preds, trainRegion2value)
                 mape = self.MAPE(preds, trainRegion2value)
@@ -230,11 +228,12 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 for pattern in filteredPatterns:
                     region2value = textMatrix[pattern]
                     for region, value in region2value.items():
-                        pred = numpy.dot(pattern2vector[pattern],region2Vector[region])  * self.scalingFactor
-                        error = pred - value
-                        patternAbsoluteErrors.append(numpy.absolute(error))
-                        trueVals[region+pattern] = value
-                        predVals[region+pattern] = pred
+                        if value != 0.0:
+                            pred = numpy.dot(pattern2vector[pattern],region2Vector[region])  * self.scalingFactor
+                            error = pred - value
+                            patternAbsoluteErrors.append(numpy.absolute(error))
+                            trueVals[region+pattern] = value
+                            predVals[region+pattern] = pred
                 #print property, ", iteration ", iter, " reconstruction mean squared error on textMatrix=", numpy.mean(patternSquaredErrors)
                 textMean = numpy.mean(patternAbsoluteErrors)
                 of.write(property + ", iteration " + str(iter) + " reconstruction mean absolute error on textMatrix=" + str(textMean) + "\n") 
@@ -244,11 +243,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 euclidDistanceFromPropertyVector = {}
                 pVectorSquare = numpy.dot(propertyVector, propertyVector)
                 for pattern, vector in pattern2vector.items():
-                    # if the distance is too high ignore.
-                    try:
-                        euclidDistanceFromPropertyVector[pattern] = numpy.sqrt(numpy.dot(vector, vector) - 2 * numpy.dot(vector, propertyVector) + pVectorSquare)
-                    except FloatingPointError:
-                        pass
+                    euclidDistanceFromPropertyVector[pattern] = numpy.sqrt(numpy.dot(vector, vector) - 2 * numpy.dot(vector, propertyVector) + pVectorSquare)
                 
                 sortedPaterns= sorted(euclidDistanceFromPropertyVector.items(), key=operator.itemgetter(1))
                 
@@ -323,7 +318,7 @@ if __name__ == "__main__":
     #properties = ["/location/statistical_region/trade_balance_as_percent_of_gdp"]
     #properties = ["/location/statistical_region/renewable_freshwater_per_capita"]
  
-    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, paramSets, True)
+    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 8, properties, outputFileName, paramSets, True)
 
 #     property2bestParams = {"/location/statistical_region/population": [0.0001, 0.1, 5000, 0.15, 1.0, True]}
 #     property2MAPE = {}

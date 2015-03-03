@@ -55,32 +55,33 @@ class AbstractPredictor(object):
         of = open(ofn, "w")
         print "Training"
         
-        try:
+        #try:
             #cProfile.runctx('predictor.trainRelation(property, trainRegion2value, textMatrix, of, params)', globals(), locals())
 
-            predictor.trainRelation(property, trainRegion2value, textMatrix, of, params)
-            print "Done training"
-        except FloatingPointError:
-            print "Training with params ", params, " failed due to floating point error"
-            avgScore = float("inf")
-        else:
-            print "Testing"
-            predMatrix = {}
-            predMatrix[property] = {}
-            for region in testRegion2value:
-                predMatrix[property][region] = predictor.predict(property, region, of)
+        predictor.trainRelation(property, trainRegion2value, textMatrix, of, params)
+        print "Done training"
+        #except FloatingPointError:
+        #    print "Training with params ", params, " failed due to floating point error"
+        #    avgScore = float("inf")
+        #else:
+        print "Testing"
+        predMatrix = {}
+        predMatrix[property] = {}
+        for region in testRegion2value:
+            predMatrix[property][region] = predictor.predict(property, region, of)
             
-            testMatrix = {}
-            testMatrix[property] = testRegion2value
-            avgScore = predictor.eval(predMatrix, testMatrix, of)
-            of.write("fold MAPE:" + str(avgScore) + "\n")
-        finally:
-            of.close()
-            if ofn.split("_")[-1] == "TEST":
-                d["TEST"] =  avgScore
-            else:
-                d[int(ofn.split("_")[-1])] =  avgScore
-            return avgScore
+        testMatrix = {}
+        testMatrix[property] = testRegion2value
+        avgScore = predictor.eval(predMatrix, testMatrix, of)
+        of.write("fold MAPE:" + str(avgScore) + "\n")
+        if ofn.split("_")[-1] == "TEST":
+            d["TEST"] =  avgScore
+        else:
+            d[int(ofn.split("_")[-1])] =  avgScore
+        return avgScore
+            
+        #finally:
+        of.close()
     
     
     # the paramSets

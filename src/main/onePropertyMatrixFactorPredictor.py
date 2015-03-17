@@ -25,7 +25,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             of.write("no vector for property " + property.encode('utf-8') + " or no vector for region " + region.encode('utf-8') + " for this property\n")
             return fixedValuePredictor.FixedValuePredictor.predict(self, property, region)
     
-    @profile  
+    #@profile  
     def trainRelation(self, property, trainRegion2value, textMatrix, of, params):
         
         learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale = params
@@ -191,7 +191,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         # reconstruction error
                         # so this the squared percentage error loss (the denominator is a squared constant)
                         #if pp == property:
-                    eij = (value - numpy.dot(ppVector,region2Vector[region]))/numpy.square(value)
+                    eij = (value - numpy.dot(ppVector,region2Vector[region]))#/numpy.square(value)
                         #else:
                         #eij = (value - numpy.dot(ppVector,region2Vector[region]))
                             
@@ -288,11 +288,11 @@ if __name__ == "__main__":
     
     outputFileName = sys.argv[4]
 
-    learningRates = [0.0001]
-    l2penalties = [0.01]
-    iterations =  [300]
-    filterThresholds = [0.7]
-    learningRateBalances = [0.0]
+    learningRates = [0.00005]
+    l2penalties = [0.005, 0.01, 0.05]
+    iterations =  [6000, 7000, 8000, 9000, 10000]
+    filterThresholds = [0.4, 0.5, 0.6, 0.7]
+    learningRateBalances = [0.0, 0.5, 1.0]
     scale = [True]
 
 
@@ -326,22 +326,22 @@ if __name__ == "__main__":
     #properties = ["/location/statistical_region/trade_balance_as_percent_of_gdp"]
     #properties = ["/location/statistical_region/renewable_freshwater_per_capita"]
  
-    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, paramSets, False)
+    #property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 8, properties, outputFileName, paramSets)
 
-#     property2bestParams = {"/location/statistical_region/population": [0.0001, 0.1, 5000, 0.15, 1.0, True]}
-#     property2MAPE = {}
-#     for property in properties:
-#         paramsStrs = []
-#         for param in property2bestParams[property]:
-#             paramsStrs.append(str(param))
-#     
-#         ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_TEST"
-#         a= {}
-#         OnePropertyMatrixFactorPredictor.runRelEval(a, property, trainMatrix[property], textMatrix, testMatrix[property], ofn, property2bestParams[property])
-#         property2MAPE[property] = a.values()[0]
-#                     
-#     for property in sorted(property2MAPE):
-#         print property, property2MAPE[property]
-#     print "avg MAPE:", str(numpy.mean(property2MAPE.values()))
+    property2bestParams = {"/location/statistical_region/population": [5e-05, 0.05, 6000, 0.4, 0.5, True]}
+    property2MAPE = {}
+    for property in properties:
+        paramsStrs = []
+        for param in property2bestParams[property]:
+            paramsStrs.append(str(param))
+      
+        ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_TEST"
+        a= {}
+        OnePropertyMatrixFactorPredictor.runRelEval(a, property, trainMatrix[property], textMatrix, testMatrix[property], ofn, property2bestParams[property])
+        property2MAPE[property] = a.values()[0]
+                      
+    for property in sorted(property2MAPE):
+        print property, property2MAPE[property]
+    print "avg MAPE:", str(numpy.mean(property2MAPE.values()))
 
     

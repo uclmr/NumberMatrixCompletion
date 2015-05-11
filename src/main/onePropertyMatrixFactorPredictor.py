@@ -195,6 +195,8 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         eij = (value - numpy.dot(ppVector,region2Vector[region]))#/numpy.square(value)
                     elif loss == "SMAPE":
                         eij = (value - numpy.dot(ppVector,region2Vector[region]))/numpy.square(value)
+                    elif loss == "MAPE":
+                        eij = numpy.sign(value - numpy.dot(ppVector,region2Vector[region]))
                         #else:
                         #eij = (value - numpy.dot(ppVector,region2Vector[region]))
                             
@@ -297,7 +299,7 @@ if __name__ == "__main__":
     filterThresholds = [0.1, 0.2, 0.3, 0.4, 0.5]
     learningRateBalances = [0.0, 1.0]
     scale = [True]
-    losses = ["SE", "SMAPE"]
+    losses = ["SE", "SMAPE", "MAPE"]
 
 
     # construct the grid for paramsearch:

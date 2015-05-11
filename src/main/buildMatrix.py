@@ -149,44 +149,69 @@ def depPath2StringExtend(sentenceDAG, path, locationTokenIDs, numberTokenIDs, ex
     hasContentWord = False
     for seqOnPath, tokenId in enumerate(path[1:-1]):
         if sentenceDAG.node[tokenId]["ner"] == "O":
-            pathStrings.append(sentenceDAG.node[tokenId]["lemma"] + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
+            pathStrings.append(sentenceDAG.node[tokenId]["lemma"].lower() + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
             if sentenceDAG.node[tokenId]["pos"][0] in "NVJR":
                 hasContentWord = True
         else:
             pathStrings.append(sentenceDAG.node[tokenId]["ner"] + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
     
+    pathStrings.append("NUMBER_SLOT")
+    
     if hasContentWord:
-        # add the number bit
-        strings.append("+".join(pathStrings + ["NUMBER_SLOT"]))
+        strings.append("+".join(pathStrings))
                         
-    if extend:                            
-        # create additional paths by adding all out-edges from the number token (except for the one taking as back)
-        # the number token is the last one on the path
-        outEdgesFromNumber = sentenceDAG.out_edges_iter([path[-1]])
-        for edge in outEdgesFromNumber:
-            # the source of the edge we knew
-            dummy, outNode = edge
-            # if we are not going back
-            if outNode != path[-2] and outNode not in numberTokenIDs:
-                if sentenceDAG.node[outNode]["ner"] == "O":
-                    if hasContentWord or  sentenceDAG.node[outNode]["pos"][0] in "NVJR":
-                        strings.append("+".join(pathStrings + ["NUMBER_SLOT~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"] ]))
-                elif hasContentWord: 
-                    strings.append("+".join(pathStrings + ["NUMBER_SLOT~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["ner"] ]))
-        
-        # do the same for the LOCATION
-        outEdgesFromLocation = sentenceDAG.out_edges_iter([path[0]])
-        for edge in outEdgesFromLocation:
-            # the source of the edge we knew
-            dummy, outNode = edge
-            # if we are not going on the path
-            if outNode != path[1] and outNode not in locationTokenIDs:
-                if sentenceDAG.node[outNode]["ner"] == "O":
-                    if hasContentWord or  sentenceDAG.node[outNode]["pos"][0] in "NVJR":
-                        strings.append("+".join([sentenceDAG.node[outNode]["lemma"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER_SLOT"]))
-                elif hasContentWord:
-                    strings.append("+".join([sentenceDAG.node[outNode]["ner"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER_SLOT"]))
-        
+    if extend:
+        # create additional paths by adding all out-edges from the number token (except for the ones on the path)        
+        # the extension is always added left of the node
+        for nodeOnPath in path:
+            # go over each node on the path
+            outEdges = sentenceDAG.out_edges_iter([nodeOnPath])
+                                    
+            for pathIdx, edge in enumerate(outEdges):
+                tempPathStrings = copy.deepcopy(pathStrings)
+                # the source of the edge we knew
+                curNode, outNode = edge
+                # if we are not going on the path
+                if outNode not in path and outNode not in numberTokenIDs:
+                    if sentenceDAG.node[outNode]["ner"] == "O":
+                        if hasContentWord or sentenceDAG.node[outNode]["pos"][0] in "NVJR":
+                            #print "*extend*" + sentenceDAG.node[outNode]["lemma"] + "~" + sentenceDAG[curNode][outNode]["label"]
+                            #print pathStrings.insert(pathIdx, "*extend*" + sentenceDAG.node[outNode]["lemma"] + "~" + sentenceDAG[curNode][outNode]["label"])
+                            tempPathStrings.insert(pathIdx, "*extend*" + sentenceDAG.node[outNode]["lemma"].lower() + "~" + sentenceDAG[curNode][outNode]["label"])
+                            #print tempPathStrings
+                            strings.append("+".join(tempPathStrings))
+                    elif hasContentWord: 
+                        tempPathStrings.insert(pathIdx, "*extend*" + sentenceDAG.node[outNode]["ner"] + "~" + sentenceDAG[curNode][outNode]["label"])
+                        strings.append("+".join(tempPathStrings))
+                
+                
+#         # create additional paths by adding all out-edges from the number token (except for the one taking as back)
+#         # the number token is the last one on the path
+#         #outEdgesFromNumber = sentenceDAG.out_edges_iter([path[-1]])
+#         #for edge in outEdgesFromNumber:
+#             # the source of the edge we knew
+#             dummy, outNode = edge
+#             # if we are not going back
+#             if outNode != path[-2] and outNode not in numberTokenIDs:
+#                 if sentenceDAG.node[outNode]["ner"] == "O":
+#                     if hasContentWord or  sentenceDAG.node[outNode]["pos"][0] in "NVJR":
+#                         strings.append("+".join(pathStrings + ["NUMBER_SLOT~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["lemma"] ]))
+#                 elif hasContentWord: 
+#                     strings.append("+".join(pathStrings + ["NUMBER_SLOT~" + sentenceDAG[path[-1]][outNode]["label"] + "~" + sentenceDAG.node[outNode]["ner"] ]))
+#         
+#         # do the same for the LOCATION
+#         outEdgesFromLocation = sentenceDAG.out_edges_iter([path[0]])
+#         for edge in outEdgesFromLocation:
+#             # the source of the edge we knew
+#             dummy, outNode = edge
+#             # if we are not going on the path
+#             if outNode != path[1] and outNode not in locationTokenIDs:
+#                 if sentenceDAG.node[outNode]["ner"] == "O":
+#                     if hasContentWord or  sentenceDAG.node[outNode]["pos"][0] in "NVJR":
+#                         strings.append("+".join([sentenceDAG.node[outNode]["lemma"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER_SLOT"]))
+#                 elif hasContentWord:
+#                     strings.append("+".join([sentenceDAG.node[outNode]["ner"] + "~"+ sentenceDAG[path[0]][outNode]["label"]] + pathStrings + ["NUMBER_SLOT"]))
+#         
         
     return strings
 
@@ -223,28 +248,29 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
         # add the word to left
         extension = []
         extensionHasContentWord = False
-        for idx in range(lhsID-1, max(-1, lhsID-5),-1):
+        for idx in range(lhsID-1, max(-1, lhsID-10),-1):
             if sentence["tokens"][idx]["ner"] == "O":
                 extension = ['"' + sentence["tokens"][idx]["word"].lower() + '"']  + extension
                 if sentence["tokens"][idx]["pos"][0] in "NVJR":
                     extensionHasContentWord = True
             else:
                 extension = ['"' + sentence["tokens"][idx]["ner"] + '"']  + extension
-            if hasContentWord or extensionHasContentWord:
+            # add the extension if it has a content word and the last thing added is not a comma    
+            if (hasContentWord or extensionHasContentWord) and (sentence["tokens"][idx]["word"] != ","):
                 tokenSeqs.append(copy.copy(extension) + tokens)
         
         # and now to the right
         extension = []
         extensionHasContentWord = False
-        for idx in range(rhsID+1, min(len(sentence["tokens"]), rhsID+4)):
+        for idx in range(rhsID+1, min(len(sentence["tokens"]), rhsID+9)):
             if sentence["tokens"][idx]["ner"] == "O":
                 extension.append('"' + sentence["tokens"][idx]["word"].lower() + '"')
                 if sentence["tokens"][idx]["pos"][0] in "NVJR":
                     extensionHasContentWord = True
             else:
                 extension.append('"' + sentence["tokens"][idx]["ner"] + '"')
-                
-            if hasContentWord or extensionHasContentWord:    
+            # add the extension if it has a content word and the last thing added is not a comma    
+            if (hasContentWord or extensionHasContentWord) and (sentence["tokens"][idx]["word"] != ","):    
                 tokenSeqs.append(tokens + copy.copy(extension))
             
     return tokenSeqs

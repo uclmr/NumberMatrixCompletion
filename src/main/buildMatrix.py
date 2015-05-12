@@ -44,7 +44,13 @@ def getNumbers(sentence):
                     ids = [idx]
                     # check the next token if it is million or thousand
                     if len(sentence["tokens"]) > idx+1:
-                        if sentence["tokens"][idx+1]["word"].startswith("million"):
+                        if sentence["tokens"][idx+1]["word"].startswith("trillion"):
+                            number = number * 1000000000000
+                            ids.append(idx+1)                        
+                        elif sentence["tokens"][idx+1]["word"].startswith("billion"):
+                            number = number * 1000000000
+                            ids.append(idx+1)
+                        elif sentence["tokens"][idx+1]["word"].startswith("million"):
                             number = number * 1000000
                             ids.append(idx+1)
                             #print sentence["tokens"]
@@ -290,6 +296,9 @@ outputFile = sys.argv[2]
 # this forms the columns using the lexicalized dependency and surface patterns
 pattern2location2values = {}
 
+# this keeps an example sentence for each pattern
+pattern2example = {}
+
 print str(len(jsonFiles)) + " files to process"
 
 # load the hardcoded names (if any):
@@ -315,9 +324,14 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
         tokenIDs2location = getLocations(sentence)
         
         # if there was at least one location and one number build the dependency graph:
-        if len(tokenIDs2number) > 0 and len(tokenIDs2location) > 0:
+        if len(tokenIDs2number) > 0 and len(tokenIDs2location) > 0 and len(sentence["tokens"])<80:
             
             sentenceDAG = buildDAGfromSentence(sentence)
+            
+            wordsInSentence = [] 
+            for token in sentence["tokens"]:
+                wordsInSentence.append(token["word"])
+            sample = " ".join(wordsInSentence)
 
             # for each pair of location and number 
             # get the pairs of each and find their dependency paths (might be more than one) 
@@ -335,11 +349,15 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
                             for pathString in pathStrings:
                                 if pathString not in pattern2location2values:
                                     pattern2location2values[pathString] = {}
+                                    
                             
                                 if location not in pattern2location2values[pathString]:
                                     pattern2location2values[pathString][location] = []
                         
                                 pattern2location2values[pathString][location].append(number)
+                                
+                                if len(pattern2location2values[pathString]) == 2:
+                                    pattern2example[pathString] = sample
                                 
                     # now get the surface strings 
                     surfacePatternTokenSeqs = getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs)   
@@ -348,20 +366,30 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
                             surfaceString = ",".join(surfacePatternTokens)
                             if surfaceString not in pattern2location2values:
                                 pattern2location2values[surfaceString] = {}
-                            
+                                
+                                
                             if location not in pattern2location2values[surfaceString]:
                                 pattern2location2values[surfaceString][location] = []
                         
                             pattern2location2values[surfaceString][location].append(number)
+                            
+                            if len(pattern2location2values[surfaceString]) == 2:
+                                pattern2example[surfaceString] = sample
     
     # save every 1000 files
-    if fileCounter % 1000 == 0:   
+    if fileCounter % 10000 == 0:
+        print str(fileCounter) + " files processed"   
         with open(outputFile + "_tmp", "wb") as out:
             json.dump(pattern2location2values, out)
+
+        with open(outputFile + "_examples_tmp", "wb") as out:
+            json.dump(pattern2example, out)
         
                         
 with open(outputFile, "wb") as out:
     json.dump(pattern2location2values, out)
 
+with open(outputFile + "_examples", "wb") as out:
+    json.dump(pattern2example, out)
 
     

@@ -37,6 +37,8 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         # first let's filter 
         filteredPatterns = []
         filteredPatternMAPES = []
+        
+        of.write(str(trainRegion2value))
 
         # this is to be used to avoid superhuge errors        
         #errorBound = max(numpy.abs(numpy.min(trainRegion2value.values())), numpy.abs(numpy.max(trainRegion2value.values())))
@@ -81,8 +83,11 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         scaledTextMatrix[pattern] = region2value
                     # order it so that we don't have issues with random init           
                     scaledTextMatrix[pattern] = OrderedDict(sorted(scaledTextMatrix[pattern].items(), key=lambda t: t[0]))
-        of.write(property+ ", patterns left after filtering " + str(len(filteredPatterns)) + "\n")
-        of.write(str(filteredPatterns).encode('utf-8') +"\n")
+        of.write(property+ ", " + str(len(filteredPatterns)) +" patterns left after filtering\n")
+        for pattern in filteredPatterns:
+            of.write(pattern.encode('utf-8') + "\t" + str(textMatrix[pattern])+"\n")
+            
+        #of.write(str(filteredPatterns).encode('utf-8') +"\n")
         if len(filteredPatterns) == 0:
             of.write(property + ", no patterns left after filtering, SKIP")
             return
@@ -294,12 +299,12 @@ if __name__ == "__main__":
     outputFileName = sys.argv[4]
 
     learningRates = [0.001]
-    l2penalties = [0.01]
-    iterations =  [1000, 2000, 3000, 4000, 5000]
-    filterThresholds = [0.1, 0.2, 0.3, 0.4, 0.5]
-    learningRateBalances = [0.0, 1.0]
+    l2penalties = [0.1]
+    iterations =  [1000]
+    filterThresholds = [0.05, 0.1, 0.2, 0.3]
+    learningRateBalances = [0.0]
     scale = [True]
-    losses = ["SE", "SMAPE", "MAPE"]
+    losses = ["SMAPE"] # , "SE", "SMAPE", "MAPE"
 
 
     # construct the grid for paramsearch:
@@ -328,14 +333,14 @@ if __name__ == "__main__":
     # Otherwise, specify which ones are needed:
     #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]
     #properties = ["/location/statistical_region/cpi_inflation_rate"]
-    #properties = ["/location/statistical_region/population"]
+    properties = ["/location/statistical_region/population"]
     #properties = ["/location/statistical_region/fertility_rate"]
     #properties = ["/location/statistical_region/trade_balance_as_percent_of_gdp"]
     #properties = ["/location/statistical_region/renewable_freshwater_per_capita"]
     #properties = ["/location/statistical_region/net_migration"]
-    properties = ["/location/statistical_region/gdp_growth_rate"]
+    #properties = ["/location/statistical_region/gdp_growth_rate"]
  
-    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, paramSets)
+    property2bestParams = OnePropertyMatrixFactorPredictor.crossValidate(trainMatrix, textMatrix, 8, properties, outputFileName, paramSets)
 
     #property2bestParams = {"/location/statistical_region/population": [5e-05, 0.05, 6000, 0.4, 0.5, True]}
     #property2MAPE = {}

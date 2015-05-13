@@ -186,8 +186,8 @@ if __name__ == "__main__":
     #properties = ["/location/statistical_region/population"]
     properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json").read())
 
-    #property2bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, [[False],[True, 0.03125],[True, 0.0625],[True, 0.125],[True, 0.25],[True,0.5],[True,1],[True,2],[True,4],[True,8],])
-    property2bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, [[False]])
+    property2bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 8, properties, outputFileName, [[True, 0.03125],[True, 0.0625],[True, 0.125],[True, 0.25],[True,0.5],[True,1],[True,2],[True,4],[True,8],[True,16],[True,32],])
+    #property2bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 8, properties, outputFileName, [[False]])
     #print "OK"
     
     property2MAPE = {}

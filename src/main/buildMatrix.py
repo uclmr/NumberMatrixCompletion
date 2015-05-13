@@ -324,7 +324,7 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
         tokenIDs2location = getLocations(sentence)
         
         # if there was at least one location and one number build the dependency graph:
-        if len(tokenIDs2number) > 0 and len(tokenIDs2location) > 0 and len(sentence["tokens"])<80:
+        if len(tokenIDs2number) > 0 and len(tokenIDs2location) > 0:# and len(sentence["tokens"])<120:
             
             sentenceDAG = buildDAGfromSentence(sentence)
             

@@ -3,7 +3,8 @@ import numpy
 import copy
 import operator
 from collections import Counter, OrderedDict
-    
+import operator
+import scipy 
 
 class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
     
@@ -36,7 +37,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 
         # first let's filter 
         filteredPatterns = []
-        filteredPatternMAPES = []
+        filteredPattern2MAPE = {}
         
         of.write(str(trainRegion2value))
 
@@ -71,7 +72,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 mape = self. MAPE(region2value, trainRegion2value)
                 if mape < filterThreshold:
                     filteredPatterns.append(pattern)
-                    filteredPatternMAPES.append(mape)
+                    filteredPattern2MAPE[pattern] = mape
                     # scale if necessary
                     if scaling:
                         scaledRegion2value = {}#copy.deepcopy(region2value)
@@ -86,6 +87,11 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         of.write(property+ ", " + str(len(filteredPatterns)) +" patterns left after filtering\n")
         for pattern in filteredPatterns:
             of.write(pattern.encode('utf-8') + "\t" + str(textMatrix[pattern])+"\n")
+            
+        # print the patterns ordered by value
+        sortedPatterns = sorted(filteredPattern2MAPE.items(), key=operator.itemgetter(1))
+        for p in sortedPatterns:
+            of.write(str(p) + "\n")
             
         #of.write(str(filteredPatterns).encode('utf-8') +"\n")
         if len(filteredPatterns) == 0:
@@ -258,19 +264,18 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 patternMape = self.MAPE(predVals, trueVals)
                 of.write(property + ", iteration " + str(iter) + " MAPE on textMatrix=" + str(patternMape) + "\n") 
                 
-                euclidDistanceFromPropertyVector = {}
-                pVectorSquare = numpy.dot(propertyVector, propertyVector)
+                distanceFromPropertyVector = {}
                 for pattern, vector in pattern2vector.items():
-                    euclidDistanceFromPropertyVector[pattern] = numpy.sqrt(numpy.dot(vector, vector) - 2 * numpy.dot(vector, propertyVector) + pVectorSquare)
+                    distanceFromPropertyVector[pattern] = (scipy.spatial.distance.cdist([propertyVector], [vector], 'cosine'))[0]
                 
-                sortedPaterns= sorted(euclidDistanceFromPropertyVector.items(), key=operator.itemgetter(1))
+                sortedPaterns= sorted(distanceFromPropertyVector.items(), key=operator.itemgetter(1))
                 
-                of.write("top-10 patterns closest to the property in euclidean distance : distance from property\n")
-                for idx in xrange(min(10, len(sortedPaterns))):
+                of.write("top patterns closest to the property : distance\n")
+                for idx in xrange(min(30, len(sortedPaterns))):
                     of.write(sortedPaterns[idx][0].encode('utf-8') + ":" +  str(sortedPaterns[idx][1])+ "\n")
                 
-                of.write("top-10 patterns further from the property in euclidean distance : distance from property\n")
-                for idx in xrange(min(10, len(sortedPaterns))):
+                of.write("bottom patterns further from the property : distance\n")
+                for idx in xrange(min(30, len(sortedPaterns))):
                     of.write(sortedPaterns[-idx-1][0].encode('utf-8') + ":" +  str(sortedPaterns[-idx-1][1])+ "\n")
                 
             if mape < 0.000001:
@@ -300,8 +305,8 @@ if __name__ == "__main__":
 
     learningRates = [0.001]
     l2penalties = [0.1]
-    iterations =  [1000]
-    filterThresholds = [0.05, 0.1, 0.2, 0.3]
+    iterations =  [3000]
+    filterThresholds = [0.4]
     learningRateBalances = [0.0]
     scale = [True]
     losses = ["SMAPE"] # , "SE", "SMAPE", "MAPE"

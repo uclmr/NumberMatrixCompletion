@@ -12,6 +12,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         # each region has a different vector for each property
         self.property2region2Vector = {}
         self.property2vector = {}
+        self.property2pattern2Vector = {}
         # keep this as a backup:
         fixedValuePredictor.FixedValuePredictor.__init__(self)
         # This is the scaling factor
@@ -284,6 +285,8 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         #d[property] = (propertyVector, region2Vector)
         self.property2vector[property] = propertyVector
         self.property2region2Vector[property] = region2Vector 
+        
+        self.property2pattern2Vector[property] = pattern2vector
         
                                      
 if __name__ == "__main__":

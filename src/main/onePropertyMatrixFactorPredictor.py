@@ -267,7 +267,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 
                 distanceFromPropertyVector = {}
                 for pattern, vector in pattern2vector.items():
-                    distanceFromPropertyVector[pattern] = (scipy.spatial.distance.cdist([propertyVector], [vector], 'cosine'))[0]
+                    distanceFromPropertyVector[pattern] = (scipy.spatial.distance.cdist([propertyVector], [vector], 'euclidean'))[0][0]
                 
                 sortedPaterns= sorted(distanceFromPropertyVector.items(), key=operator.itemgetter(1))
                 

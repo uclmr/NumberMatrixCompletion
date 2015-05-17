@@ -25,7 +25,10 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             return numpy.dot(self.property2vector[property], self.property2region2Vector[property][region]) * self.scalingFactor
         else:
             of.write("no vector for property " + property.encode('utf-8') + " or no vector for region " + region.encode('utf-8') + " for this property\n")
-            return fixedValuePredictor.FixedValuePredictor.predict(self, property, region)
+            if useDefault:
+                return fixedValuePredictor.FixedValuePredictor.predict(self, property, region, of)
+            else:
+                return None
     
     #@profile  
     def trainRelation(self, property, trainRegion2value, textMatrix, of, params):

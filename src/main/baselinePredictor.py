@@ -13,7 +13,7 @@ class BaselinePredictor(fixedValuePredictor.FixedValuePredictor):
         #super(BaselinePredictor,self).__init_()
         
 
-    def predict(self, property, region, of):
+    def predict(self, property, region, of, useDefault=True):
         # collect all the values for this region found in related patterns
         values = []
         if property in self.property2patterns:
@@ -26,7 +26,10 @@ class BaselinePredictor(fixedValuePredictor.FixedValuePredictor):
         if len(values) > 0:
             return numpy.mean(values)
         else:
-            return fixedValuePredictor.FixedValuePredictor.predict(self, property, region, of)
+            if useDefault:
+                return fixedValuePredictor.FixedValuePredictor.predict(self, property, region, of)
+            else:
+                return None
         
     def trainRelation(self, property, trainRegion2value, textMatrix, of, params=[False]):
         # get the fixed value first

@@ -74,6 +74,21 @@ class AbstractPredictor(object):
         testMatrix[property] = testRegion2value
         avgScore = predictor.eval(predMatrix, testMatrix, of)
         of.write("fold MAPE:" + str(avgScore) + "\n")
+        
+        # Now repeat the prediction but now do not use defaults
+        of.write("Evaluation without using the defaults\n")
+        predMatrix = {}
+        predMatrix[property] = {}
+        for region in testRegion2value:
+            val = predictor.predict(property, region, of, False)
+            if val != None:
+                predMatrix[property][region] = val
+        coverage = float(len(predMatrix[property]))/len(testMatrix[property])
+        avgScoreNoDefault = predictor.eval(predMatrix, testMatrix, of)
+        of.write("fold MAPE without defaults:" + str(avgScoreNoDefault) +" coverage " + str(coverage) + "\n")
+        
+        
+        
         if ofn.split("_")[-1] == "TEST":
             d["TEST"] =  avgScore
         else:

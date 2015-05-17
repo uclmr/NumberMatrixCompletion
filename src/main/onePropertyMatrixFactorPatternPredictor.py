@@ -17,7 +17,7 @@ class OnePropertyMatrixFactorPatternPredictor(onePropertyMatrixFactorPredictor.O
         self.property2patterns = {}
         
     # This is the same as the baseline predictor
-    def predict(self, property, region, of):
+    def predict(self, property, region, of, useDefault=True):
         # collect all the values for this region found in related patterns
         values = []
         if property in self.property2patterns:
@@ -30,7 +30,10 @@ class OnePropertyMatrixFactorPatternPredictor(onePropertyMatrixFactorPredictor.O
         if len(values) > 0:
             return numpy.mean(values)
         else:
-            return fixedValuePredictor.FixedValuePredictor.predict(self, property, region, of)
+            if useDefault:
+                return fixedValuePredictor.FixedValuePredictor.predict(self, property, region, of)
+            else:
+                return None
     
     #@profile  
     def trainRelation(self, property, trainRegion2value, textMatrix, of, params):
@@ -110,11 +113,11 @@ if __name__ == "__main__":
     
     outputFileName = sys.argv[4]
 
-    learningRates = [0.001]
+    learningRates = [0.00001]
     l2penalties = [0.1]
     iterations =  [1000,2000,3000]
-    filterThresholds = [0.4]
-    learningRateBalances = [0.0, 1.0]
+    filterThresholds = [0.3]
+    learningRateBalances = [0.0]
     scale = [True]
     losses = ["SMAPE"] # , "SE", "SMAPE", "MAPE"
 

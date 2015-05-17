@@ -9,9 +9,11 @@ class FixedValuePredictor(abstractPredictor.AbstractPredictor):
         self.property2fixedValue = {}
         
         
-    def predict(self, property, region, of=None):
-        return self.property2fixedValue[property]
-
+    def predict(self, property, region, of=None, useDefault=True):
+        if useDefault:
+            return self.property2fixedValue[property]
+        else:
+            return None
 
     # TODO: remove the textMatrix from the arg list
     def trainRelation(self, property, trainRegion2value, textMatrix, of, params=None): 

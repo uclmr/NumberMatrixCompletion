@@ -113,11 +113,11 @@ if __name__ == "__main__":
     
     outputFileName = sys.argv[4]
 
-    learningRates = [0.00001]
-    l2penalties = [0.1]
+    learningRates = [0.00001, 0.0001, 0.001]
+    l2penalties = [0.1, 0.01]
     iterations =  [1000,2000,3000]
-    filterThresholds = [0.3]
-    learningRateBalances = [0.0]
+    filterThresholds = [0.1, 0.2, 0.3]
+    learningRateBalances = [0.0, 1.0, 2.0]
     scale = [True]
     losses = ["SMAPE"] # , "SE", "SMAPE", "MAPE"
 
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     #learningRateBalances = [0.0, 1.0]
     
     # this loads all relations
-    #properties = json.loads(open("/cs/research/intelsys/home1/avlachos/FactChecking/featuresKept.json"))
+    properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json"))
     # Otherwise, specify which ones are needed:
     #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]
     #properties = ["/location/statistical_region/cpi_inflation_rate"]
@@ -153,24 +153,24 @@ if __name__ == "__main__":
     #properties = ["/location/statistical_region/trade_balance_as_percent_of_gdp"]
     #properties = ["/location/statistical_region/renewable_freshwater_per_capita"]
     #properties = ["/location/statistical_region/net_migration"]
-    properties = ["/location/statistical_region/gdp_growth_rate"]
+    #properties = ["/location/statistical_region/gdp_growth_rate"]
  
     property2bestParams = OnePropertyMatrixFactorPatternPredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, paramSets)
-
-    #property2bestParams = {"/location/statistical_region/population": [5e-05, 0.05, 6000, 0.4, 0.5, True]}
-    #property2MAPE = {}
-    #for property in properties:
-    #    paramsStrs = []
-    #    for param in property2bestParams[property]:
-    #        paramsStrs.append(str(param))
-      
-    #    ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_TEST"
-    #    a= {}
-    #    OnePropertyMatrixFactorPredictor.runRelEval(a, property, trainMatrix[property], textMatrix, testMatrix[property], ofn, property2bestParams[property])
-    #    property2MAPE[property] = a.values()[0]
-                      
-    #for property in sorted(property2MAPE):
-    #    print property, property2MAPE[property]
-    #print "avg MAPE:", str(numpy.mean(property2MAPE.values()))
+    
+#     property2bestParams = {"/location/statistical_region/fertility_rate": [0.0001, 0.01, 1000, 0.3, 1.0, True, 'SMAPE']}
+    property2MAPE = {}
+    for property in properties:
+        paramsStrs = []
+        for param in property2bestParams[property]:
+            paramsStrs.append(str(param))
+        
+        ofn = outputFileName + "_" + property.split("/")[-1] + "_" + "_".join(paramsStrs) + "_TEST"
+        a= {}
+        OnePropertyMatrixFactorPatternPredictor.runRelEval(a, property, trainMatrix[property], textMatrix, testMatrix[property], ofn, property2bestParams[property])
+        property2MAPE[property] = a.values()[0]
+                        
+    for property in sorted(property2MAPE):
+        print property, property2MAPE[property]
+    print "avg MAPE:", str(numpy.mean(property2MAPE.values()))
 
     

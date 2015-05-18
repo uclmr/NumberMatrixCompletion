@@ -15,6 +15,8 @@ class BaselinePredictor(fixedValuePredictor.FixedValuePredictor):
 
     def predict(self, property, region, of, useDefault=True):
         # collect all the values for this region found in related patterns
+        # if 0 then one pattern is enough, otherwise more are needed to avoid default
+        patternsRequiredForPrediction = 0
         values = []
         if property in self.property2patterns:
             patterns = self.property2patterns[property]
@@ -23,7 +25,7 @@ class BaselinePredictor(fixedValuePredictor.FixedValuePredictor):
                     values.append(region2value[region])
                     of.write("region: " + region.encode('utf-8') + " pattern used: " + pattern.encode('utf-8') + " value: " + str(region2value[region]) + "\n")
 
-        if len(values) > 0:
+        if len(values) > patternsRequiredForPrediction:
             return numpy.mean(values)
         else:
             if useDefault:
@@ -189,8 +191,8 @@ if __name__ == "__main__":
     #properties = ["/location/statistical_region/population"]
     properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json").read())
 
-    property2bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 8, properties, outputFileName, [[True, 0.03125],[True, 0.0625],[True, 0.125],[True, 0.25],[True,0.5],[True,1],[True,2],[True,4],[True,8],[True,16],[True,32],])
-    #property2bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 8, properties, outputFileName, [[False]])
+    property2bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, [[True, 0.03125],[True, 0.0625],[True, 0.125],[True, 0.25],[True,0.5],[True,1],[True,2],[True,4],[True,8],[True,16],[True,32],])
+    #property2bestParams = baselinePredictor.crossValidate(trainMatrix, textMatrix, 4, properties, outputFileName, [[False]])
     #print "OK"
     
     property2MAPE = {}

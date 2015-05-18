@@ -84,9 +84,11 @@ class AbstractPredictor(object):
             if val != None:
                 predMatrix[property][region] = val
         coverage = float(len(predMatrix[property]))/len(testMatrix[property])
-        avgScoreNoDefault = predictor.eval(predMatrix, testMatrix, of)
-        of.write("fold MAPE without defaults:" + str(avgScoreNoDefault) +" coverage " + str(coverage) + "\n")
-        
+        if coverage > 0:
+            avgScoreNoDefault = predictor.eval(predMatrix, testMatrix, of)
+            of.write("fold MAPE without defaults:" + str(avgScoreNoDefault) +" coverage " + str(coverage) + "\n")
+        else:
+            of.write("No values predicted.\n")
         
         
         if ofn.split("_")[-1] == "TEST":

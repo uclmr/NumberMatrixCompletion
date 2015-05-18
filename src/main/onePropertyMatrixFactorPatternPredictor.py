@@ -44,6 +44,9 @@ class OnePropertyMatrixFactorPatternPredictor(onePropertyMatrixFactorPredictor.O
 
         # right so we got the vectors, we should now decide hpw many to keep
         self.property2patterns[property] = {}
+        if len(self.property2pattern2Vector[property]) == 0:
+            of.write(property + ", no patterns left after filtering, SKIP\n")
+            return
         #print "OK"        
         patternDistances = []
 
@@ -61,7 +64,7 @@ class OnePropertyMatrixFactorPatternPredictor(onePropertyMatrixFactorPredictor.O
         # calculate the current score with 
         currentMAPE = self.MAPE(prediction, trainRegion2value)
         
-        while True:
+        while len(patternDistances) > 0:
             # The pattern with the smallest MAPE is indexed at 0
             # the elememts are (MAPE, pattern) tuples
             distance, pattern = heapq.heappop(patternDistances)

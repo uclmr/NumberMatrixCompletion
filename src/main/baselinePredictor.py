@@ -70,7 +70,7 @@ class BaselinePredictor(fixedValuePredictor.FixedValuePredictor):
         # calculate the current score with 
         currentMAPE = self.MAPE(prediction, trainRegion2value)
         
-        while True:
+        while len(patternMAPEs)>0:
             # The pattern with the smallest MAPE is indexed at 0
             # the elememts are (MAPE, pattern) tuples
             mape, pattern = heapq.heappop(patternMAPEs)

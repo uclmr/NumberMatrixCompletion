@@ -99,7 +99,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             
         #of.write(str(filteredPatterns).encode('utf-8') +"\n")
         if len(filteredPatterns) == 0:
-            of.write(property + ", no patterns left after filtering, SKIP")
+            of.write(property + ", no patterns left after filtering, SKIP\n")
             return
         
         # if scaling

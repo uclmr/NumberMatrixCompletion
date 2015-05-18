@@ -146,7 +146,7 @@ if __name__ == "__main__":
     #learningRateBalances = [0.0, 1.0]
     
     # this loads all relations
-    properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json"))
+    properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json").read())
     # Otherwise, specify which ones are needed:
     #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]
     #properties = ["/location/statistical_region/cpi_inflation_rate"]

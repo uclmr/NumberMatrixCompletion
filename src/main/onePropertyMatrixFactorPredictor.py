@@ -18,7 +18,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         # This is the scaling factor
         self.scalingFactor = None
         
-    def predict(self, property, region, of):
+    def predict(self, property, region, of, useDefault=True):
         # it can be the case that we haven't got anything for a country
         if property in self.property2vector and region in self.property2region2Vector[property]:
             # remember to mulitply with the scaling factor

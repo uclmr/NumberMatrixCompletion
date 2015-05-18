@@ -99,6 +99,7 @@ class OnePropertyMatrixFactorPatternPredictor(onePropertyMatrixFactorPredictor.O
 if __name__ == "__main__":
     
     import sys
+    import json
     
     # helps detect errors
     numpy.seterr(all='raise')

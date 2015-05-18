@@ -4,7 +4,7 @@ import copy
 import operator
 from collections import Counter, OrderedDict
 import operator
-import scipy 
+import scipy
 
 class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
     
@@ -295,7 +295,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
 if __name__ == "__main__":
     
     import sys
-    
+    import json
     # helps detect errors
     numpy.seterr(all='raise')
     #numpy.random.seed(13)

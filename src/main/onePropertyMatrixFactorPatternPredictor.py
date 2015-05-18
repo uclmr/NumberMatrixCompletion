@@ -100,6 +100,7 @@ if __name__ == "__main__":
     
     import sys
     import json
+    import os.path
     
     # helps detect errors
     numpy.seterr(all='raise')

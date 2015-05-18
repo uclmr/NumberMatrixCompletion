@@ -295,6 +295,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
 if __name__ == "__main__":
     
     import sys
+    import os.path
     import json
     # helps detect errors
     numpy.seterr(all='raise')

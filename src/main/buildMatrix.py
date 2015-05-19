@@ -282,114 +282,113 @@ def getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs, extend=
     return tokenSeqs
     
     
-
-# again, we want to extend them on either side.
-
-parsedJSONDir = sys.argv[1]
-
-# get all the files
-jsonFiles = glob.glob(parsedJSONDir + "/*.json")
-
-# one json to rule them all
-outputFile = sys.argv[2]
-
-# this forms the columns using the lexicalized dependency and surface patterns
-pattern2location2values = {}
-
-# this keeps an example sentence for each pattern
-pattern2example = {}
-
-print str(len(jsonFiles)) + " files to process"
-
-# load the hardcoded names (if any):
-tokenizedLocationNames = []
-if len(sys.argv) > 3:
-    names = codecs.open(sys.argv[3], encoding='utf-8').readlines()
-    for name in names:
-        tokenizedLocationNames.append(unicode(name).split())
-print "Dictionary with hardcoded tokenized location names"
-print tokenizedLocationNames
-
-for fileCounter, jsonFileName in enumerate(jsonFiles):
-    print "processing " + jsonFileName
-    with codecs.open(jsonFileName) as jsonFile:
-        parsedSentences = json.loads(jsonFile.read())
+if __name__ == "__main__":
     
-    for sentence in parsedSentences:
-        # fix the ner tags
-        if len(tokenizedLocationNames)>0:
-            dictLocationMatching(sentence, tokenizedLocationNames)
+    parsedJSONDir = sys.argv[1]
+    
+    # get all the files
+    jsonFiles = glob.glob(parsedJSONDir + "/*.json")
+    
+    # one json to rule them all
+    outputFile = sys.argv[2]
+    
+    # this forms the columns using the lexicalized dependency and surface patterns
+    pattern2location2values = {}
+    
+    # this keeps an example sentence for each pattern
+    pattern2example = {}
+    
+    print str(len(jsonFiles)) + " files to process"
+    
+    # load the hardcoded names (if any):
+    tokenizedLocationNames = []
+    if len(sys.argv) > 3:
+        names = codecs.open(sys.argv[3], encoding='utf-8').readlines()
+        for name in names:
+            tokenizedLocationNames.append(unicode(name).split())
+    print "Dictionary with hardcoded tokenized location names"
+    print tokenizedLocationNames
+    
+    for fileCounter, jsonFileName in enumerate(jsonFiles):
+        print "processing " + jsonFileName
+        with codecs.open(jsonFileName) as jsonFile:
+            parsedSentences = json.loads(jsonFile.read())
         
-        tokenIDs2number = getNumbers(sentence)
-        tokenIDs2location = getLocations(sentence)
-        
-        # if there was at least one location and one number build the dependency graph:
-        if len(tokenIDs2number) > 0 and len(tokenIDs2location) > 0:# and len(sentence["tokens"])<120:
+        for sentence in parsedSentences:
+            # fix the ner tags
+            if len(tokenizedLocationNames)>0:
+                dictLocationMatching(sentence, tokenizedLocationNames)
             
-            sentenceDAG = buildDAGfromSentence(sentence)
+            tokenIDs2number = getNumbers(sentence)
+            tokenIDs2location = getLocations(sentence)
             
-            wordsInSentence = [] 
-            for token in sentence["tokens"]:
-                wordsInSentence.append(token["word"])
-            sample = " ".join(wordsInSentence)
-
-            # for each pair of location and number 
-            # get the pairs of each and find their dependency paths (might be more than one) 
-            for locationTokenIDs, location in tokenIDs2location.items():
-
-                for numberTokenIDs, number in tokenIDs2number.items():
-
-                    # keep all the shortest paths between the number and the tokens of the location
-                    shortestPaths = getShortestDepPaths(sentenceDAG, locationTokenIDs, numberTokenIDs)
-                    
-                    # ignore paths longer than some number deps (=tokens_on_path + 1)
-                    if len(shortestPaths) > 0 and len(shortestPaths[0]) < 10:
-                        for shortestPath in shortestPaths:
-                            pathStrings = depPath2StringExtend(sentenceDAG, shortestPath, locationTokenIDs, numberTokenIDs)
-                            for pathString in pathStrings:
-                                if pathString not in pattern2location2values:
-                                    pattern2location2values[pathString] = {}
+            # if there was at least one location and one number build the dependency graph:
+            if len(tokenIDs2number) > 0 and len(tokenIDs2location) > 0:# and len(sentence["tokens"])<120:
+                
+                sentenceDAG = buildDAGfromSentence(sentence)
+                
+                wordsInSentence = [] 
+                for token in sentence["tokens"]:
+                    wordsInSentence.append(token["word"])
+                sample = " ".join(wordsInSentence)
+    
+                # for each pair of location and number 
+                # get the pairs of each and find their dependency paths (might be more than one) 
+                for locationTokenIDs, location in tokenIDs2location.items():
+    
+                    for numberTokenIDs, number in tokenIDs2number.items():
+    
+                        # keep all the shortest paths between the number and the tokens of the location
+                        shortestPaths = getShortestDepPaths(sentenceDAG, locationTokenIDs, numberTokenIDs)
+                        
+                        # ignore paths longer than some number deps (=tokens_on_path + 1)
+                        if len(shortestPaths) > 0 and len(shortestPaths[0]) < 10:
+                            for shortestPath in shortestPaths:
+                                pathStrings = depPath2StringExtend(sentenceDAG, shortestPath, locationTokenIDs, numberTokenIDs)
+                                for pathString in pathStrings:
+                                    if pathString not in pattern2location2values:
+                                        pattern2location2values[pathString] = {}
+                                        
+                                
+                                    if location not in pattern2location2values[pathString]:
+                                        pattern2location2values[pathString][location] = []
+                            
+                                    pattern2location2values[pathString][location].append(number)
                                     
+                                    if len(pattern2location2values[pathString]) == 2:
+                                        pattern2example[pathString] = sample
+                                    
+                        # now get the surface strings 
+                        surfacePatternTokenSeqs = getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs)   
+                        for surfacePatternTokens in surfacePatternTokenSeqs:
+                            if len(surfacePatternTokens) < 15:
+                                surfaceString = ",".join(surfacePatternTokens)
+                                if surfaceString not in pattern2location2values:
+                                    pattern2location2values[surfaceString] = {}
+                                    
+                                    
+                                if location not in pattern2location2values[surfaceString]:
+                                    pattern2location2values[surfaceString][location] = []
                             
-                                if location not in pattern2location2values[pathString]:
-                                    pattern2location2values[pathString][location] = []
-                        
-                                pattern2location2values[pathString][location].append(number)
+                                pattern2location2values[surfaceString][location].append(number)
                                 
-                                if len(pattern2location2values[pathString]) == 2:
-                                    pattern2example[pathString] = sample
-                                
-                    # now get the surface strings 
-                    surfacePatternTokenSeqs = getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs)   
-                    for surfacePatternTokens in surfacePatternTokenSeqs:
-                        if len(surfacePatternTokens) < 15:
-                            surfaceString = ",".join(surfacePatternTokens)
-                            if surfaceString not in pattern2location2values:
-                                pattern2location2values[surfaceString] = {}
-                                
-                                
-                            if location not in pattern2location2values[surfaceString]:
-                                pattern2location2values[surfaceString][location] = []
-                        
-                            pattern2location2values[surfaceString][location].append(number)
-                            
-                            if len(pattern2location2values[surfaceString]) == 2:
-                                pattern2example[surfaceString] = sample
-    
-    # save every 1000 files
-    if fileCounter % 10000 == 0:
-        print str(fileCounter) + " files processed"   
-        with open(outputFile + "_tmp", "wb") as out:
-            json.dump(pattern2location2values, out)
-
-        with open(outputFile + "_examples_tmp", "wb") as out:
-            json.dump(pattern2example, out)
+                                if len(pattern2location2values[surfaceString]) == 2:
+                                    pattern2example[surfaceString] = sample
         
-                        
-with open(outputFile, "wb") as out:
-    json.dump(pattern2location2values, out)
-
-with open(outputFile + "_examples", "wb") as out:
-    json.dump(pattern2example, out)
-
+        # save every 1000 files
+        if fileCounter % 10000 == 0:
+            print str(fileCounter) + " files processed"   
+            with open(outputFile + "_tmp", "wb") as out:
+                json.dump(pattern2location2values, out)
     
+            with open(outputFile + "_examples_tmp", "wb") as out:
+                json.dump(pattern2example, out)
+            
+                            
+    with open(outputFile, "wb") as out:
+        json.dump(pattern2location2values, out)
+    
+    with open(outputFile + "_examples", "wb") as out:
+        json.dump(pattern2example, out)
+    
+        

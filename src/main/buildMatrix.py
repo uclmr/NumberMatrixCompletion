@@ -155,7 +155,7 @@ def depPath2StringExtend(sentenceDAG, path, locationTokenIDs, numberTokenIDs, ex
     hasContentWord = False
     for seqOnPath, tokenId in enumerate(path[1:-1]):
         if sentenceDAG.node[tokenId]["ner"] == "O":
-            pathStrings.append(sentenceDAG.node[tokenId]["lemma"].lower() + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
+            pathStrings.append(sentenceDAG.node[tokenId]["word"].lower() + "~" + sentenceDAG[tokenId][path[seqOnPath+2]]["label"])
             if sentenceDAG.node[tokenId]["pos"][0] in "NVJR":
                 hasContentWord = True
         else:
@@ -183,7 +183,7 @@ def depPath2StringExtend(sentenceDAG, path, locationTokenIDs, numberTokenIDs, ex
                         if hasContentWord or sentenceDAG.node[outNode]["pos"][0] in "NVJR":
                             #print "*extend*" + sentenceDAG.node[outNode]["lemma"] + "~" + sentenceDAG[curNode][outNode]["label"]
                             #print pathStrings.insert(pathIdx, "*extend*" + sentenceDAG.node[outNode]["lemma"] + "~" + sentenceDAG[curNode][outNode]["label"])
-                            tempPathStrings.insert(pathIdx, "*extend*" + sentenceDAG.node[outNode]["lemma"].lower() + "~" + sentenceDAG[curNode][outNode]["label"])
+                            tempPathStrings.insert(pathIdx, "*extend*" + sentenceDAG.node[outNode]["word"].lower() + "~" + sentenceDAG[curNode][outNode]["label"])
                             #print tempPathStrings
                             strings.append("+".join(tempPathStrings))
                     elif hasContentWord: 

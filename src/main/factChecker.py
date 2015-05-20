@@ -121,7 +121,7 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
         for token in sentence["tokens"]:
             wordsInSentence.append(token["word"])
         sentenceText = " ".join(wordsInSentence)
-        print "Sentence: " + sentenceText
+        print "Sentence: " + sentenceText.encode('utf-8')
 
         # get the numbers mentioned        
         tokenIDs2number = buildMatrix.getNumbers(sentence)        
@@ -142,7 +142,7 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
                 region = alias2region[location.lower()]
             
             if region in property2region2value[property]:  
-                print "location in text " + location + " is known as " + region + " in FB with known " + property + " value " + str(property2region2value[property][region])
+                print "location in text " + location.encode('utf-8') + " is known as " + region.encode('utf-8') + " in FB with known " + property + " value " + str(property2region2value[property][region])
                     
                 sentenceDAG = buildMatrix.buildDAGfromSentence(sentence)
                                     
@@ -171,11 +171,15 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
 
                     if len(patternsApplied) > 0:
                         print patternsApplied
-                        print "sentence states that " + location + " has " + property + " value " + str(number)
-                        mape = abs(number - str(property2region2value[property][region])) / float(abs(str(property2region2value[property][region])))
+                        print "sentence states that " + location.encode('utf-8') + " has " + property + " value " + str(number)
+                        mape = abs(number - property2region2value[property][region]) / float(abs(property2region2value[property][region]))
                         print "MAPE: " + str(mape)
                         if mape > 0.3:
-                            print "FALSE"  
+                            print "FALSE"
+                        else:
+                            print "TRUE" 
+                            
+                            
                     
                      
                     

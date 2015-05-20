@@ -47,9 +47,9 @@ textMatrix = predictor.loadMatrix(sys.argv[2])
 
 
 # specify which ones are needed:
-property = "/location/statistical_region/population"
+property = "/location/statistical_region/gni_per_capita_in_ppp_dollars"
 
-params = [0.001, 0.01, 2000, 0.3, 0.0, True, 'SMAPE']
+params = [0.0001, 0.01, 2000, 0.2, 1.0, True, 'SMAPE']
 
 # train
 predictor.trainRelation(property, property2region2value[property], textMatrix, sys.stdout, params)
@@ -113,6 +113,10 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
         parsedSentences = json.loads(jsonFile.read())
     
     for sentence in parsedSentences:
+        # skip sentences with more than 120 tokens.
+        if len(sentence["tokens"])>120:
+            continue
+            
         # fix the ner tags
         if len(tokenizedLocationNames)>0:
             buildMatrix.dictLocationMatching(sentence, tokenizedLocationNames)

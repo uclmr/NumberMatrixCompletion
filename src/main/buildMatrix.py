@@ -323,7 +323,7 @@ if __name__ == "__main__":
             tokenIDs2location = getLocations(sentence)
             
             # if there was at least one location and one number build the dependency graph:
-            if len(tokenIDs2number) > 0 and len(tokenIDs2location) > 0:# and len(sentence["tokens"])<120:
+            if len(tokenIDs2number) > 0 and len(tokenIDs2location) > 0 and len(sentence["tokens"])<120:
                 
                 sentenceDAG = buildDAGfromSentence(sentence)
                 

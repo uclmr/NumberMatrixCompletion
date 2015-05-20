@@ -42,11 +42,12 @@ class OnePropertyMatrixFactorPatternPredictor(onePropertyMatrixFactorPredictor.O
         # get the back up fixed values
         onePropertyMatrixFactorPredictor.OnePropertyMatrixFactorPredictor.trainRelation(self, property, trainRegion2value, textMatrix, of, params)
 
-        # right so we got the vectors, we should now decide hpw many to keep
+        # right so we got the vectors, we should now decide how many to keep
         self.property2patterns[property] = {}
-        if len(self.property2pattern2Vector[property]) == 0:
+        if property not in self.property2pattern2Vector:
             of.write(property + ", no patterns left after filtering, SKIP\n")
             return
+        
         #print "OK"        
         patternDistances = []
 
@@ -150,9 +151,14 @@ if __name__ == "__main__":
     
     # this loads all relations
     properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json").read())
+    # removed the properties that have been done already.
+    properties.remove("/location/statistical_region/size_of_armed_forces")
+    properties.remove("/location/statistical_region/gni_per_capita_in_ppp_dollars")
+    properties.remove("/location/statistical_region/gdp_nominal")
+    
     # Otherwise, specify which ones are needed:
     #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]
-    #properties = ["/location/statistical_region/cpi_inflation_rate"]
+    #properties = ["/location/statistical_region/foreign_direct_investment_net_inflows"]
     #properties = ["/location/statistical_region/population"]
     #properties = ["/location/statistical_region/fertility_rate"]
     #properties = ["/location/statistical_region/trade_balance_as_percent_of_gdp"]

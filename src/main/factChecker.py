@@ -49,22 +49,13 @@ textMatrix = predictor.loadMatrix(sys.argv[2])
 # specify which ones are needed:
 property = "/location/statistical_region/population"
 
-params = [0.001, 0.01, 1000, 0.3, 1.0, True, 'SMAPE']
+params = [0.001, 0.01, 2000, 0.3, 0.0, True, 'SMAPE']
 
 # train
 predictor.trainRelation(property, property2region2value[property], textMatrix, sys.stdout, params)
 
-# Calculate the distances between the property vector and each  
-
-pattern2distance = {}
-
-for pattern, vector in predictor.property2pattern2Vector[property].items():
-    distance = (scipy.spatial.distance.cdist([predictor.property2vector[property]], [vector], 'euclidean'))[0][0]
-    pattern2distance[pattern] = distance   
-
-sortedPatterns = sorted(pattern2distance.items(), key=operator.itemgetter(1))
-for p in sortedPatterns:
-    print str(p)
+print "patterns kept:"
+print predictor.property2patterns[property].keys()
 
 
 # parsed texts to check
@@ -151,24 +142,40 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
                 region = alias2region[location.lower()]
             
             if region in property2region2value[property]:  
-                print "location in text " + location + " is known as " + region + " in FB with known value " + str(property2region2value[property][region])
+                print "location in text " + location + " is known as " + region + " in FB with known " + property + " value " + str(property2region2value[property][region])
                     
                 sentenceDAG = buildMatrix.buildDAGfromSentence(sentence)
                                     
                 for numberTokenIDs, number in tokenIDs2number.items():
                     
-                    print "number " + str(number) + " in text"
+                    #print "number in text: " + str(number)
                     
+                    patterns = []
                     # keep all the shortest paths between the number and the tokens of the location
                     shortestPaths = buildMatrix.getShortestDepPaths(sentenceDAG, locationTokenIDs, numberTokenIDs)
+                    for shortestPath in shortestPaths:
+                        pathStrings = buildMatrix.depPath2StringExtend(sentenceDAG, shortestPath, locationTokenIDs, numberTokenIDs)
+                        patterns.extend(pathStrings)
                                 
                     # now get the surface strings 
-                    surfacePatternTokenSeqs = buildMatrix.getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs)   
+                    surfacePatternTokenSeqs = buildMatrix.getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs)
+                    for surfacePatternTokens in surfacePatternTokenSeqs:
+                        if len(surfacePatternTokens) < 15:
+                            surfaceString = ",".join(surfacePatternTokens)
+                            patterns.append(surfaceString)
 
+                    patternsApplied = []
+                    for pattern in patterns:
+                        if pattern in predictor.property2patterns[property].keys():
+                            patternsApplied.append(pattern)
 
-                    # TODO: Factcheck!
-                    
-                    # Pick the path/pattern nearest to the property vector
+                    if len(patternsApplied) > 0:
+                        print patternsApplied
+                        print "sentence states that " + location + " has " + property + " value " + str(number)
+                        mape = abs(number - str(property2region2value[property][region])) / float(abs(str(property2region2value[property][region])))
+                        print "MAPE: " + str(mape)
+                        if mape > 0.3:
+                            print "FALSE"  
                     
                      
                     

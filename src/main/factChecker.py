@@ -43,11 +43,10 @@ for region, property2value in region2property2value.items():
         property2region2value[property][region] = value
 
 # text patterns
-textMatrix = predictor.loadMatrix(sys.argv[2])
-
+textMatrix = predictor.loadMatrix(sys.argv[2]) 
 
 # specify which ones are needed:
-property = "/location/statistical_region/gni_per_capita_in_ppp_dollars"
+property = "/location/statistical_region/" + sys.argv[3]
 
 params = [0.0001, 0.01, 2000, 0.2, 1.0, True, 'SMAPE']
 
@@ -59,7 +58,7 @@ print predictor.property2patterns[property].keys()
 
 
 # parsed texts to check
-parsedJSONDir = sys.argv[3]
+parsedJSONDir = sys.argv[4]
 
 # get all the files
 jsonFiles = glob.glob(parsedJSONDir + "/*.json")
@@ -69,7 +68,7 @@ print str(len(jsonFiles)) + " files to process"
 
 # load the hardcoded names 
 tokenizedLocationNames = []
-names = codecs.open(sys.argv[4], encoding='utf-8').readlines()
+names = codecs.open(sys.argv[5], encoding='utf-8').readlines()
 for name in names:
     tokenizedLocationNames.append(unicode(name).split())
 print "Dictionary with hardcoded tokenized location names"
@@ -77,7 +76,7 @@ print tokenizedLocationNames
 
 # get the aliases 
 # load the file
-with open(sys.argv[5]) as jsonFile:
+with open(sys.argv[6]) as jsonFile:
     region2aliases = json.loads(jsonFile.read())
 
 # so we first need to take the location2aliases dict and turn in into aliases to region

@@ -84,8 +84,9 @@ def extractNumericalValues(jsonObj, propertiesOfInterest):
                 else:
                     # or it is just YYYY
                     thisTime = [int(thisTime), 0]
-                if (mostRecentTime == [0,0]) or (thisTime[0] > mostRecentTime[0]) \
-                    or (thisTime[0] == mostRecentTime[0] and thisTime[1] > mostRecentTime[1]):
+                # check that the numbers are not future projections!
+                if (thisTime[0] < 2015) and ((mostRecentTime == [0,0]) or (thisTime[0] > mostRecentTime[0]) \
+                    or (thisTime[0] == mostRecentTime[0] and thisTime[1] > mostRecentTime[1])):
                     mostRecentTime = thisTime
                     mostRecentValue = thisValue
             # if the time specified cannot be parsed, ignore it
@@ -127,11 +128,11 @@ if __name__ == '__main__':
     print countries2numbers
     # maybe return a json? Would be useful to be language independent
     print relation2counts
-    print "countries with at least one 2010- number: " + str(totalCountries)
+    print "countries with at least one 2010-2014 number: " + str(totalCountries)
     print "total post 2010 numbers: " + str(totalNumbers)
     print "Unique relations: " + str(len(uniqueRelations))    
     
-    with open(dirName + "../allCountriesPost2010.json", 'wb') as dc:
+    with open(dirName + "../allCountriesPost2010-2014.json", 'wb') as dc:
         json.dump(countries2numbers, dc)
 
     

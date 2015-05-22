@@ -100,7 +100,8 @@ def extractNumericalValues(jsonObj, propertiesOfInterest):
     
 
 if __name__ == '__main__':
-    dirName = "/scratch0/NOT_BACKED_UP/avlachos/FreeBaseDataCont/"
+    import sys
+    dirName = sys.argv[1]
     propertiesOfInterest = {}
     with open(dirName + "../propertiesOfInterest.json") as props:
         propertiesOfInterest = json.loads(props.read())

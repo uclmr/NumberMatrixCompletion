@@ -196,7 +196,7 @@ class AbstractPredictor(object):
                     avgMAPE = numpy.mean(orderedFold2MAPE.values())
                     print property + ":params:", params, " avgMAPE:", avgMAPE, "stdMAPE:", numpy.std(orderedFold2MAPE.values()), "foldMAPEs:", orderedFold2MAPE.values()
                     # lower is better
-                    if avgMAPE < lowestAvgMAPE:
+                    if avgMAPE <= lowestAvgMAPE:
                         bestParams = params
                         lowestAvgMAPE = avgMAPE
                     

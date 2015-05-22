@@ -125,7 +125,7 @@ if __name__ == "__main__":
     filterThresholds = [0.1, 0.2, 0.3]
     learningRateBalances = [0.0, 1.0, 2.0]
     scale = [True]
-    losses = ["SMAPE"] # , "SE", "SMAPE", "MAPE"
+    losses = ["SMAPE", "SE"] # , "SE", "SMAPE", "MAPE"
 
 
     # construct the grid for paramsearch:
@@ -150,11 +150,12 @@ if __name__ == "__main__":
     #learningRateBalances = [0.0, 1.0]
     
     # this loads all relations
-    properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json").read())
+    properties = ["/location/statistical_region/" + sys.argv[5]]
+    #properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json").read())
     # removed the properties that have been done already.
-    properties.remove("/location/statistical_region/size_of_armed_forces")
-    properties.remove("/location/statistical_region/gni_per_capita_in_ppp_dollars")
-    properties.remove("/location/statistical_region/gdp_nominal")
+    #properties.remove("/location/statistical_region/size_of_armed_forces")
+    #properties.remove("/location/statistical_region/gni_per_capita_in_ppp_dollars")
+    #properties.remove("/location/statistical_region/gdp_nominal")
     
     # Otherwise, specify which ones are needed:
     #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]

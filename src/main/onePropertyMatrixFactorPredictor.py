@@ -285,6 +285,18 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             if mape < 0.000001:
                 break
         
+        distanceFromPropertyVector = {}
+        for pattern, vector in pattern2vector.items():
+            distanceFromPropertyVector[pattern] = (scipy.spatial.distance.cdist([propertyVector], [vector], 'euclidean'))[0][0]
+                
+        sortedPaterns= sorted(distanceFromPropertyVector.items(), key=operator.itemgetter(1))
+                
+        of.write("patterns sorted by distance from the property : distance\n")
+        for idx in xrange(len(sortedPaterns)):
+            of.write(sortedPaterns[idx][0].encode('utf-8') + ":" +  str(sortedPaterns[idx][1])+ "\n")
+
+        
+        
         #d[property] = (propertyVector, region2Vector)
         self.property2vector[property] = propertyVector
         self.property2region2Vector[property] = region2Vector 
@@ -316,7 +328,7 @@ if __name__ == "__main__":
     filterThresholds = [0.1, 0.2, 0.3]
     learningRateBalances = [0.0, 1.0, 2.0]
     scale = [True]
-    losses = ["SMAPE"] # , "SE", "SMAPE", "MAPE"
+    losses = ["SMAPE", "SE"] # , "SE", "SMAPE", "MAPE"
 
     # construct the grid for paramsearch:
     # naive grid search
@@ -340,7 +352,8 @@ if __name__ == "__main__":
     #learningRateBalances = [0.0, 1.0]
     
     # this loads all relations
-    properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json").read())
+    #properties = json.loads(open(os.path.dirname(os.path.abspath(sys.argv[1])) + "/featuresKept.json").read())
+    properties = ["/location/statistical_region/" + sys.argv[5]]
     # Otherwise, specify which ones are needed:
     #properties = ["/location/statistical_region/population","/location/statistical_region/gdp_real","/location/statistical_region/cpi_inflation_rate"]
     #properties = ["/location/statistical_region/cpi_inflation_rate"]

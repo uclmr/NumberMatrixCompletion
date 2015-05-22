@@ -21,13 +21,9 @@ import scipy
 import operator
 import buildMatrix
 import onePropertyMatrixFactorPatternPredictor
-#import baselinePredictor
+import baselinePredictor
 
 
-# first let's train a model
-
-# pick a kind of predictor
-predictor = onePropertyMatrixFactorPatternPredictor.OnePropertyMatrixFactorPatternPredictor()
 
 # training data
 # load the FreeBase file
@@ -43,12 +39,24 @@ for region, property2value in region2property2value.items():
         property2region2value[property][region] = value
 
 # text patterns
-textMatrix = predictor.loadMatrix(sys.argv[2]) 
+textMatrix = baselinePredictor.BaselinePredictor.loadMatrix(sys.argv[2]) 
 
 # specify which ones are needed:
 property = "/location/statistical_region/" + sys.argv[3]
 
-params = [0.0001, 0.01, 2000, 0.2, 1.0, True, 'SMAPE']
+# first let's train a model
+
+# pick a kind of predictor
+if sys.argv[4] == "MF":
+    predictor = onePropertyMatrixFactorPatternPredictor.OnePropertyMatrixFactorPatternPredictor()
+    paramsStr = sys.argv[5].split(",")
+    # HACK: we always use scaling
+    params = [float(paramsStr[0]), float(paramsStr[1]), int(paramsStr[2]), float(paramsStr[3]), float(paramsStr[4]), True, paramsStr[6]]
+elif sys.argv[4] == "base":    
+    predictor = baselinePredictor.BaselinePredictor()
+    paramsStr = sys.argv[5].split(",")
+    # HACK: we always use adjusted MAPE
+    params = [True, float(paramsStr[1])]
 
 # train
 predictor.trainRelation(property, property2region2value[property], textMatrix, sys.stdout, params)
@@ -58,7 +66,7 @@ print predictor.property2patterns[property].keys()
 
 
 # parsed texts to check
-parsedJSONDir = sys.argv[4]
+parsedJSONDir = sys.argv[6]
 
 # get all the files
 jsonFiles = glob.glob(parsedJSONDir + "/*.json")
@@ -68,7 +76,7 @@ print str(len(jsonFiles)) + " files to process"
 
 # load the hardcoded names 
 tokenizedLocationNames = []
-names = codecs.open(sys.argv[5], encoding='utf-8').readlines()
+names = codecs.open(sys.argv[7], encoding='utf-8').readlines()
 for name in names:
     tokenizedLocationNames.append(unicode(name).split())
 print "Dictionary with hardcoded tokenized location names"
@@ -76,7 +84,7 @@ print tokenizedLocationNames
 
 # get the aliases 
 # load the file
-with open(sys.argv[6]) as jsonFile:
+with open(sys.argv[8]) as jsonFile:
     region2aliases = json.loads(jsonFile.read())
 
 # so we first need to take the location2aliases dict and turn in into aliases to region
@@ -173,14 +181,16 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
                             patternsApplied.append(pattern)
 
                     if len(patternsApplied) > 0:
-                        print patternsApplied
+                        print "confidence level= " + str(len(patternsApplied)) + "\t" + str(patternsApplied)
                         print "sentence states that " + location.encode('utf-8') + " has " + property + " value " + str(number)
                         mape = abs(number - property2region2value[property][region]) / float(abs(property2region2value[property][region]))
                         print "MAPE: " + str(mape)
                         if mape > 0.3:
                             print "FALSE"
                         else:
-                            print "TRUE" 
+                            print "TRUE"
+                        print "source: " + jsonFileName
+                        
                             
                             
                     

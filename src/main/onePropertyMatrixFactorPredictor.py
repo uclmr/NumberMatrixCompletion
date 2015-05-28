@@ -211,6 +211,8 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                     elif loss == "SMAPE":
                         eij = (value - numpy.dot(ppVector,region2Vector[region]))/numpy.square(value)
                     elif loss == "MAPE":
+                        eij = numpy.sign(value - numpy.dot(ppVector,region2Vector[region]))/numpy.abs(value)
+                    elif loss == "AE":
                         eij = numpy.sign(value - numpy.dot(ppVector,region2Vector[region]))
                         #else:
                         #eij = (value - numpy.dot(ppVector,region2Vector[region]))

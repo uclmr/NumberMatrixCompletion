@@ -15,15 +15,14 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         self.property2pattern2Vector = {}
         # keep this as a backup:
         fixedValuePredictor.FixedValuePredictor.__init__(self)
-        # These are used for scaling
-        self.property2mean = {}
-        self.property2stdev = {}
+        # This is the scaling factor
+        self.scalingFactor = None
         
     def predict(self, property, region, of, useDefault=True):
         # it can be the case that we haven't got anything for a country
         if property in self.property2vector and region in self.property2region2Vector[property]:
-            # remember to mulitply with the stdev and then add the mean
-            return numpy.dot(self.property2vector[property], self.property2region2Vector[property][region]) * self.property2stdev[property] + self.property2mean[property]
+            # remember to mulitply with the scaling factor
+            return numpy.dot(self.property2vector[property], self.property2region2Vector[property][region]) * self.scalingFactor
         else:
             of.write("no vector for property " + property.encode('utf-8') + " or no vector for region " + region.encode('utf-8') + " for this property\n")
             if useDefault:
@@ -34,7 +33,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
     #@profile  
     def trainRelation(self, property, trainRegion2value, textMatrix, of, params):
         
-        learningRate, regParam, iterations, filterThreshold, learningRateBalance, scaling, loss = params
+        learningRate, regParam, iterations, filterThreshold, learningRateBalance, scale, loss = params
         
         #of.write(str(trainRegion2value))
         # get the back up fixed values
@@ -44,22 +43,29 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         filteredPatterns = []
         filteredPattern2MAPE = {}
         
-        of.write("Training data\n")
-        of.write(str(trainRegion2value) + "\n")
+        of.write("Training data")
+        of.write(str(trainRegion2value) +"\n")
 
+        # this is to be used to avoid superhuge errors        
+        #errorBound = max(numpy.abs(numpy.min(trainRegion2value.values())), numpy.abs(numpy.max(trainRegion2value.values())))
+        errorBound = numpy.abs(numpy.median(trainRegion2value.values()))
+        #errorBound = numpy.min(numpy.abs(trainRegion2value.values()))
+        of.write("error bound:"  + str(errorBound) + "\n")
+        scaling = scale
+        # if scaling
         if scaling:
-            self.property2mean[property] = numpy.mean(trainRegion2value.values())
-            self.property2stdev[property] = numpy.std(trainRegion2value.values())
+            #self.scalingFactor = max(numpy.abs(numpy.min(trainRegion2value.values())), numpy.abs(numpy.max(trainRegion2value.values())))/100
+            self.scalingFactor = numpy.abs(numpy.median(trainRegion2value.values()))
+            #[numpy.nonzero(trainRegion2value.values())]
+            #self.scalingFactor = numpy.min(numpy.abs(trainRegion2value.values()))
+            #self.scalingFactor = numpy.max(numpy.abs(trainRegion2value.values()))
 
-            of.write("property mean subtracted:" + str(self.property2mean[property]) + "\n")
-            of.write("property stdev scale:" + str(self.property2stdev[property]) + "\n")
-            
+            of.write("scaling factor:" + str(self.scalingFactor) + "\n")
             # scale the error bound too!
-            #errorBound /= self.scalingFactor
-            #of.write("error bound after scaling:"  + str(errorBound) + "\n")
+            errorBound /= self.scalingFactor
+            of.write("error bound after scaling:"  + str(errorBound) + "\n")
         else:
-            self.property2mean[property] = 0.0
-            self.property2stdev[property] = 1.0
+            self.scalingFactor = 1.0            
         
         # construct the (possibly scaled) text matrix, but before scaling, just in case the filtering mechanism cares about it
         scaledTextMatrix = {}
@@ -73,16 +79,16 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 if mape < filterThreshold:
                     filteredPatterns.append(pattern)
                     filteredPattern2MAPE[pattern] = mape
-                    # scale if necessary
-                    if scaling:
-                        scaledRegion2value = {}#copy.deepcopy(region2value)
-                        for region, value in region2value.items():
-                            scaledValue = (value - self.property2mean[property])/self.property2stdev[property]
-                            if scaledValue != 0.0:
-                                scaledRegion2value[region] = scaledValue
-                        scaledTextMatrix[pattern] = scaledRegion2value
-                    else:
-                        scaledTextMatrix[pattern] = region2value
+
+                    scaledRegion2value = {}#copy.deepcopy(region2value)
+                    for region, value in region2value.items():
+                        if value != 0.0:
+                            if scaling:
+                                scaledRegion2value[region] = value/self.scalingFactor
+                            else:
+                                scaledRegion2value[region] = value
+                    scaledTextMatrix[pattern] = scaledRegion2value
+                    
                     # order it so that we don't have issues with random init           
                     scaledTextMatrix[pattern] = OrderedDict(sorted(scaledTextMatrix[pattern].items(), key=lambda t: t[0]))
         of.write(property+ ", " + str(len(filteredPatterns)) +" patterns left after filtering\n")
@@ -90,6 +96,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             of.write(pattern.encode('utf-8') + "\t" + str(textMatrix[pattern])+"\n")
             
         # print the patterns ordered by value
+        of.write("The patterns kept ordered by MAPE\n")
         sortedPatterns = sorted(filteredPattern2MAPE.items(), key=operator.itemgetter(1))
         for p in sortedPatterns:
             of.write(str(p) + "\n")
@@ -104,25 +111,15 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
             # replace (without over-writing) the original training values
             scaledTrainRegion2value = {}
             for region, value in trainRegion2value.items():
-                scaledValue = (value - self.property2mean[property])/self.property2stdev[property]
-                if scaledValue != 0.0:
-                    scaledTrainRegion2value[region] = scaledValue            
+                if value != 0.0:
+                    scaledTrainRegion2value[region] = value/self.scalingFactor            
         else:
             scaledTrainRegion2value = trainRegion2value
         
         # order it so that we don't have issues with random init 
         scaledTrainRegion2value = OrderedDict(sorted(scaledTrainRegion2value.items(), key=lambda t: t[0]))
-        
-        of.write("Training data after scaling\n")
+        of.write("Training data after (possible) scaling")
         of.write(str(scaledTrainRegion2value) + "\n")
-
-        # this is to be used to avoid superhuge errors 
-        #errorBound = 1.0       
-        #errorBound = max(numpy.abs(numpy.min(trainRegion2value.values())), numpy.abs(numpy.max(trainRegion2value.values())))
-        errorBound = numpy.abs(numpy.mean(scaledTrainRegion2value.values()))
-        of.write("error bound:"  + str(errorBound) + "\n")
-        #scaling = scale
-
 
         
         of.write(property + " training starting now\n")
@@ -140,7 +137,9 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
     
         # initialize the low dim representations
         # first the property
-        propertyVector = prng.rand(dims)/1000
+        initFact  = 0.01# numpy.min(numpy.abs(trainRegion2value.values()))
+        
+        propertyVector = prng.rand(dims)*initFact
         
 
         # then the patterns and the regions
@@ -153,11 +152,11 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         #regV = prng.rand(dims)/100
         
         for pattern in filteredPatterns:
-            pattern2vector[pattern] = prng.rand(dims)/1000
+            pattern2vector[pattern] = prng.rand(dims)*initFact
             valuesPresent += len(scaledTextMatrix[pattern]) 
             for region in scaledTextMatrix[pattern].keys():
                 if region not in region2Vector:
-                    region2Vector[region] = prng.rand(dims)/1000 # copy.deepcopy(regV)
+                    region2Vector[region] = prng.rand(dims)*initFact
                 if region in scaledTrainRegion2value:
                     trainingRegion2counts[region] += 1
                     
@@ -185,7 +184,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
         for region, value in trainRegion2value.items():
             if region in region2Vector:
                 # remember to multiply with the scaling factor
-                pred = numpy.dot(propertyVector,region2Vector[region]) * self.property2stdev[property] + self.property2mean[property]
+                pred = numpy.dot(propertyVector,region2Vector[region]) * self.scalingFactor
                 error = pred - value 
                 absoluteErrors.append(numpy.absolute(error))
         of.write(property + ", initial reconstruction mean absolute error on trainMatrix=" + str(numpy.mean(absoluteErrors)) + "\n") 
@@ -214,6 +213,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         # reconstruction error
                         # so this the squared percentage error loss (the denominator is a squared constant)
                         #if pp == property:
+                    #of.write(pp.encode('utf-8') + " " + region.encode('utf-8')  + " " + str(value) + " " + str(numpy.dot(ppVector,region2Vector[region])) + "\n" )
                     if loss == "SE":
                         eij = (value - numpy.dot(ppVector,region2Vector[region]))#/numpy.square(value)
                     elif loss == "SMAPE":
@@ -224,11 +224,13 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                         eij = numpy.sign(value - numpy.dot(ppVector,region2Vector[region]))
                         #else:
                         #eij = (value - numpy.dot(ppVector,region2Vector[region]))
-                            
+                    #print eij
+                    #print errorBound        
                         #of.write(region.encode('utf-8') + " " + pp.encode('utf-8') + " original value:" + str(value) + " error:" + str(eij) + "\n")                            
                         # if the error is too large (2 times the max abs value) then set it to that
                     if abs(eij) > errorBound:                                
                         eij = errorBound * numpy.sign(eij)
+                    #print eij
                             
                         # if the error is very big (more than the square of the original value)
                         # just update straight
@@ -246,7 +248,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                 preds = {}
                 for region, value in trainRegion2value.items():
                     if region in region2Vector:
-                        pred = numpy.dot(propertyVector,region2Vector[region]) * self.property2stdev[property] + self.property2mean[property]
+                        pred = numpy.dot(propertyVector,region2Vector[region]) * self.scalingFactor
                         error = pred - value
                         absoluteErrors.append(numpy.absolute(error))
                         #squaredErrors.append(numpy.square(error))
@@ -267,7 +269,7 @@ class OnePropertyMatrixFactorPredictor(fixedValuePredictor.FixedValuePredictor):
                     region2value = textMatrix[pattern]
                     for region, value in region2value.items():
                         if value != 0.0:
-                            pred = numpy.dot(pattern2vector[pattern],region2Vector[region]) * self.property2stdev[property] + self.property2mean[property]
+                            pred = numpy.dot(pattern2vector[pattern],region2Vector[region])  * self.scalingFactor
                             error = pred - value
                             patternAbsoluteErrors.append(numpy.absolute(error))
                             trueVals[region+pattern] = value
@@ -332,13 +334,13 @@ if __name__ == "__main__":
     
     outputFileName = sys.argv[4]
 
-    learningRates = [0.000001]
+    learningRates = [0.0001]
     l2penalties = [0.1]
-    iterations =  [1000]
-    filterThresholds = [0.3]
+    iterations =  [1000,2000, 3000, 4000,5000]
+    filterThresholds = [0.5]
     learningRateBalances = [0.0]
     scale = [False]
-    losses = ["SE"] # ["SMAPE", "SE", "MAPE", "AE"]
+    losses = ["SMAPE", "MAPE"] # , "AE", "SE", 
 
     # construct the grid for paramsearch:
     # naive grid search

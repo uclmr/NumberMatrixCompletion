@@ -295,8 +295,8 @@ if __name__ == "__main__":
     # this forms the columns using the lexicalized dependency and surface patterns
     pattern2location2values = {}
     
-    # this keeps an example sentence for each pattern
-    pattern2example = {}
+    # this keeps the sentences for each pattern
+    pattern2sentences = {}
     
     print str(len(jsonFiles)) + " files to process"
     
@@ -354,9 +354,10 @@ if __name__ == "__main__":
                                         pattern2location2values[pathString][location] = []
                             
                                     pattern2location2values[pathString][location].append(number)
-                                    
-                                    if len(pattern2location2values[pathString]) == 2:
-                                        pattern2example[pathString] = sample
+                                    if pathString in pattern2sentences:
+                                        pattern2sentences[pathString].append(sample)
+                                    else:
+                                        pattern2sentences[pathString] = [sample]
                                     
                         # now get the surface strings 
                         surfacePatternTokenSeqs = getSurfacePatternsExtend(sentence, locationTokenIDs, numberTokenIDs)   
@@ -371,24 +372,26 @@ if __name__ == "__main__":
                                     pattern2location2values[surfaceString][location] = []
                             
                                 pattern2location2values[surfaceString][location].append(number)
-                                
-                                if len(pattern2location2values[surfaceString]) == 2:
-                                    pattern2example[surfaceString] = sample
-        
+
+                                if surfaceString in pattern2sentences:
+                                    pattern2sentences[surfaceString].append(sample)
+                                else:
+                                    pattern2sentences[surfaceString] = [sample]
+                                        
         # save every 1000 files
         if fileCounter % 10000 == 0:
             print str(fileCounter) + " files processed"   
             with open(outputFile + "_tmp", "wb") as out:
                 json.dump(pattern2location2values, out)
     
-            with open(outputFile + "_examples_tmp", "wb") as out:
-                json.dump(pattern2example, out)
+            with open(outputFile + "_sentences_tmp", "wb") as out:
+                json.dump(pattern2sentences, out)
             
                             
     with open(outputFile, "wb") as out:
         json.dump(pattern2location2values, out)
     
-    with open(outputFile + "_examples", "wb") as out:
-        json.dump(pattern2example, out)
+    with open(outputFile + "_sentences", "wb") as out:
+        json.dump(pattern2sentences, out)
     
         

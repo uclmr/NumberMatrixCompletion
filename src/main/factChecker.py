@@ -56,7 +56,7 @@ elif sys.argv[4] == "base":
     predictor = baselinePredictor.BaselinePredictor()
     paramsStr = sys.argv[5].split(",")
     # HACK: we always use adjusted MAPE
-    params = [True, float(paramsStr[1])]
+    params = [True, float(paramsStr[0])]
 
 # train
 predictor.trainRelation(property, property2region2value[property], textMatrix, sys.stdout, params)
@@ -112,10 +112,11 @@ print alias2region
 
 # store the result: sentence, country, number, nearestPattern, euclidDistance, correctNumber, MAPE
 
+tsv = open(sys.argv[9], "wb")
 
 # Now go over each file
 for fileCounter, jsonFileName in enumerate(jsonFiles):
-    print "processing " + jsonFileName
+    #print "processing " + jsonFileName
     with codecs.open(jsonFileName) as jsonFile:
         parsedSentences = json.loads(jsonFile.read())
     
@@ -129,10 +130,10 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
             buildMatrix.dictLocationMatching(sentence, tokenizedLocationNames)
 
         wordsInSentence = [] 
-        for token in sentence["tokens"]:
+        for idx, token in enumerate(sentence["tokens"]):
             wordsInSentence.append(token["word"])
-        sentenceText = " ".join(wordsInSentence)
-        print "Sentence: " + sentenceText.encode('utf-8')
+        
+        #print "Sentence: " + sentenceText.encode('utf-8')
 
         # get the numbers mentioned        
         tokenIDs2number = buildMatrix.getNumbers(sentence)        
@@ -153,7 +154,6 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
                 region = alias2region[location.lower()]
             
             if region in property2region2value[property]:  
-                print "location in text " + location.encode('utf-8') + " is known as " + region.encode('utf-8') + " in FB with known " + property + " value " + str(property2region2value[property][region])
                     
                 sentenceDAG = buildMatrix.buildDAGfromSentence(sentence)
                                     
@@ -181,19 +181,30 @@ for fileCounter, jsonFileName in enumerate(jsonFiles):
                             patternsApplied.append(pattern)
 
                     if len(patternsApplied) > 0:
+                        wordsInSentence[numberTokenIDs[0]] = "<number>" + wordsInSentence[numberTokenIDs[0]]
+                        wordsInSentence[numberTokenIDs[-1]] = wordsInSentence[numberTokenIDs[-1]] + "</number>" 
+                        
+                        wordsInSentence[locationTokenIDs[0]] = "<location>" + wordsInSentence[locationTokenIDs[0]]
+                        wordsInSentence[locationTokenIDs[-1]] = wordsInSentence[locationTokenIDs[-1]] + "</location>"
+                        
+                        sentenceText = " ".join(wordsInSentence)
+                        
+                        print "Sentence: " + sentenceText.encode('utf-8')
+                        print "location in text " + location.encode('utf-8') + " is known as " + region.encode('utf-8') + " in FB with known " + property + " value " + str(property2region2value[property][region])
                         print "confidence level= " + str(len(patternsApplied)) + "\t" + str(patternsApplied)
                         print "sentence states that " + location.encode('utf-8') + " has " + property + " value " + str(number)
-                        mape = abs(number - property2region2value[property][region]) / float(abs(property2region2value[property][region]))
-                        print "MAPE: " + str(mape)
-                        if mape > 0.3:
-                            print "FALSE"
+                        if property2region2value[property][region] != 0.0:
+                            mape = abs(number - property2region2value[property][region]) / float(abs(property2region2value[property][region]))
+                            print "MAPE: " + str(mape)
                         else:
-                            print "TRUE"
+                            print "MAPE undefined"
+                            mape = "undef"
                         print "source: " + jsonFileName
-                        
+                        print "------------------------------"
+                        details = [sentenceText.encode('utf-8'), location.encode('utf-8'), region.encode('utf-8'), sys.argv[3], str(property2region2value[property][region]), str(len(patternsApplied)),str(patternsApplied), str(number), str(mape), jsonFileName]
+                        tsv.write("\t".join(details) + "\n")    
                             
-                            
-                    
+tsv.close()                    
                      
                     
                     

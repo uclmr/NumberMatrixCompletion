@@ -1,3 +1,6 @@
+Clean version here: https://github.com/uclmr/simpleNumericalFactChecker
+
+
 NumberMatrixCompletion
 ======================
 
